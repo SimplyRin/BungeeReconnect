@@ -17,7 +17,6 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.netty.PipelineUtils;
-//import net.md_5.bungee.protocol.packet.KeepAlive; - >KeepAlive in 1.12.2 - krusic22
 import net.md_5.bungee.protocol.packet.KeepAlive;
 
 import java.util.Objects;
@@ -88,6 +87,7 @@ public class ReconnectTask {
 		}
 
 		//Send keep alive packet so user will not disconnect if the server takes that long to start;
+		//idea by krusic22
 		user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
 		
 		// If we are already connecting to a server, cancel the reconnect task.
