@@ -14,8 +14,11 @@ import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.Title;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
+import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.netty.PipelineUtils;
 //import net.md_5.bungee.protocol.packet.KeepAlive; - >KeepAlive in 1.12.2 - krusic22
+import net.md_5.bungee.protocol.packet.KeepAlive;
 
 import java.util.Objects;
 import java.util.Random;
@@ -23,8 +26,8 @@ import java.util.concurrent.TimeUnit;
 
 public class ReconnectTask {
 
-	private static final Random RANDOM = new Random();
 	private static final TextComponent EMPTY = new TextComponent("");
+	private static final Random rand = new Random();
 
 	private final Reconnect instance;
 	private final ProxyServer bungee;
@@ -32,6 +35,9 @@ public class ReconnectTask {
 	private final ServerConnection server;
 	private final BungeeServerInfo target;
 	private final long startTime;
+	
+	private ScheduledTask reconnectUpdatesTask = null;
+	private boolean reconnectUpdates = true;
 
 	private int visualTries;
 	private int tries;
@@ -54,13 +60,15 @@ public class ReconnectTask {
 			// If we have reached the maximum reconnect limit, proceed BungeeCord-like.
 			instance.cancelReconnectTask(user.getUniqueId());
 
+			@SuppressWarnings("deprecation")
 			ServerInfo def = bungee.getServerInfo(user.getPendingConnection().getListener().getFallbackServer());
 			if (target != def) {
 				// If the fallback-server is not the same server we tried to reconnect to, send the user to that one instead.
 				server.setObsolete(true);
-				user.connectNow(def);
+				user.connectNow(def, Reason.PLUGIN);
 				user.sendMessage(bungee.getTranslation("server_went_down"));
-
+				
+				
 				// Send fancy title if it's enabled in config, otherwise reset the connecting title.
 				if (!instance.getFailedTitle().isEmpty())
 					user.sendTitle(createFailedTitle());
@@ -79,6 +87,9 @@ public class ReconnectTask {
 			return;
 		}
 
+		//Send keep alive packet so user will not disconnect if the server takes that long to start;
+		user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
+		
 		// If we are already connecting to a server, cancel the reconnect task.
 		if (user.getPendingConnects().contains(target)) {
 			instance.getLogger().warning("User already connecting to " + target);
@@ -93,16 +104,9 @@ public class ReconnectTask {
 			tries++;
 		}
 		visualTries++;
-
-		// Send fancy Title
-		if (!instance.getReconnectingTitle().isEmpty()) {
-			createReconnectTitle().send(user);
-		}
-
-		// Send fancy Action Bar Message
-		if (!instance.getReconnectingActionBar().isEmpty()) {
-			sendReconnectActionBar(user);
-		}
+		
+		//Create runnable if not existing; send tiles and action bar updates every 200 Miliseconds
+		startSendingReconnectUpdates();
 
 		// Establish connection to the server.
 		ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
@@ -114,21 +118,12 @@ public class ReconnectTask {
 					// If reconnected successfully, remove from map and send another fancy title.
 					instance.cancelReconnectTask(user.getUniqueId());
 
-					// Send fancy Title
-					if (!instance.getConnectingTitle().isEmpty()) {
-						createConnectingTitle().send(user);
-					}
-
-					// Send fancy Action Bar Message
-					if (!instance.getConnectingActionBar().isEmpty()) {
-						sendConnectActionBar(user);
-					}
+					//Sends keep alive packet while server does plugin things
+					//Also sends titles and action bars
+					sendConnectUpdates();
 				} else {
 					future.channel().close();
 					user.getPendingConnects().remove(target);
-
-					// Send KeepAlive Packet so that the client won't time out.
-					//user.unsafe().sendPacket(new KeepAlive(RANDOM.nextInt())); - >KeepAlive in 1.12.2 - krusic22
 
 					// Schedule next reconnect.
 					Utils.scheduleAsync(instance, new Runnable() {
@@ -154,6 +149,54 @@ public class ReconnectTask {
 			b.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
 		}
 		b.connect().addListener(listener);
+	}
+	
+	private void sendConnectUpdates() {
+		ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
+			if (Objects.equals(user.getServer(), server)) {//because server A will not be A after A restarts, while server B will just be a reference held by this
+				//Send keep alive packet so user will not disconnect if the server feels like not sending any for whatever reason;
+				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
+				
+				// Send fancy Title
+				if (!instance.getConnectingTitle().isEmpty()) {
+					createConnectingTitle().send(user);
+				}
+
+				// Send fancy Action Bar Message
+				if (!instance.getConnectingActionBar().isEmpty()) {
+					sendConnectActionBar(user);
+				}
+				sendConnectUpdates();
+			} else {
+				cancel();
+			}
+		}, 200L, TimeUnit.MILLISECONDS);
+	}
+
+	private void startSendingReconnectUpdates() {
+		reconnectUpdatesTask = ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
+			if (reconnectUpdates && user.isConnected()) {
+				// Send fancy Title
+				if (!instance.getReconnectingTitle().isEmpty()) {
+					createReconnectTitle().send(user);
+				}
+
+				// Send fancy Action Bar Message
+				if (!instance.getReconnectingActionBar().isEmpty()) {
+					sendReconnectActionBar(user);
+				}
+				startSendingReconnectUpdates();
+			} else {
+				stopSendingReconnectUpdates();
+			}
+		}, 200L, TimeUnit.MILLISECONDS);
+	}
+	
+	private void stopSendingReconnectUpdates() {
+		if (reconnectUpdatesTask != null) {
+			reconnectUpdates = false;
+			reconnectUpdatesTask.cancel();
+		}
 	}
 
 	/**
@@ -189,8 +232,8 @@ public class ReconnectTask {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(EMPTY);
 		title.subTitle(new TextComponent(instance.getConnectingTitle()));
-		title.stay(20);
-		title.fadeIn(10);
+		title.stay(120);
+		title.fadeIn(0);
 		title.fadeOut(10);
 
 		return title;
@@ -212,7 +255,7 @@ public class ReconnectTask {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(EMPTY);
 		title.subTitle(new TextComponent(instance.getFailedTitle()));
-		title.stay(80);
+		title.stay(120);
 		title.fadeIn(10);
 		title.fadeOut(10);
 
@@ -251,6 +294,7 @@ public class ReconnectTask {
 	 * Resets the title and action bar message if the player is still online
 	 */
 	public void cancel() {
+		stopSendingReconnectUpdates();
 		if (instance.isUserOnline(user)) {
 			if (!Strings.isNullOrEmpty(instance.getReconnectingTitle()) || !Strings.isNullOrEmpty(instance.getConnectingTitle())) {
 				// For some reason, we have to reset and clear the title, so it completely disappears -> BungeeCord bug?
