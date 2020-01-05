@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 public class Reconnect extends Plugin implements Listener {
@@ -40,8 +41,10 @@ public class Reconnect extends Plugin implements Listener {
 	private int reconnectMillis = 5000;
 	private int reconnectTimeout = 6000;
 	private List<String> ignoredServers = new ArrayList<>();
+	
 	private String shutdownMessage = "Server closed";
 	private Pattern shutdownPattern = null;
+	private boolean usesPattern = false;
 
 	/**
 	 * A HashMap containing all reconnect tasks.
@@ -50,11 +53,13 @@ public class Reconnect extends Plugin implements Listener {
 
 	@Override
 	public void onEnable() {
-		// register Listener
-		getProxy().getPluginManager().registerListener(this, this);
+		getLogger().setLevel(Level.FINE);
 
 		// load Configuration
 		loadConfig();
+		
+		// register Listener
+		getProxy().getPluginManager().registerListener(this, this);
 	}
 
 	/**
@@ -99,6 +104,7 @@ public class Reconnect extends Plugin implements Listener {
 					try {
 						shutdownPattern = Pattern.compile(shutdownText);
 						shutdownMessage = null;
+						usesPattern = true;
 					} catch (Exception e) {
 						getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
 					}
@@ -268,6 +274,10 @@ public class Reconnect extends Plugin implements Listener {
 
 	public Pattern getShutdownPattern() {
 		return shutdownPattern;
+	}
+
+	public boolean usesPattern() {
+		return usesPattern;
 	}
 
 }

@@ -75,37 +75,43 @@ public class ReconnectBridge extends DownstreamBridge {
 		if (Objects.equal(server.getInfo(), def)) {
 			def = null;
 		}
-		// Call ServerKickEvent
-		ServerKickEvent event = bungee.getPluginManager().callEvent(new ServerKickEvent(user, server.getInfo(), ComponentSerializer.parse(kick.getMessage()), def, ServerKickEvent.State.CONNECTED));
-		if (event.isCancelled() && event.getCancelServer() != null) {
-			user.connectNow(event.getCancelServer(), Reason.PLUGIN);
-		} else {
-			String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage()))); // needs to be parsed like that...
-			// doReconnect indicates whether the player should be reconnected or not after he has been kicked. Only if the kick reason matches the one that has been
-			// pre-defined on the config, we allow him to reconnect.
-			boolean doReconnect = false;
-			if (instance.getShutdownMessage() != null && instance.getShutdownMessage().equals(kickMessage)) {
-				doReconnect = true;
-			} else if (instance.getShutdownMessage() == null && instance.getShutdownPattern() != null) {
-				try {
-					doReconnect = instance.getShutdownPattern().matcher(kickMessage).matches();
-				} catch (Exception e) {
-					instance.getLogger().warning("Could not match shutdown-pattern " + instance.getShutdownPattern().pattern());
-				}
-			}
-
+		String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage()))); // needs to be parsed like that...
+		instance.getLogger().info("User: " + user.getName() + " Kicked from " + server.getInfo().getName() + " with reason \"" + kickMessage +"\"");
+		
+		//Check if kickMessage is a restart message
+		//Handle kick event only if reconnect message does not match, because if it does we're not kicking them.
+		if (isShutdownKick(kickMessage)) {
 			// As always, we fire a ServerReconnectEvent and give plugins the possibility to cancel server reconnecting.
-			if (!doReconnect || !instance.fireServerReconnectEvent(user, server)) {
-				// Invoke default behaviour if event has been cancelled and disconnect the player.
-				user.disconnect0(event.getKickReasonComponent());
-			} else {
+			if (instance.fireServerReconnectEvent(user, server)) {
 				// Otherwise, reconnect the User if he is still online.
+				instance.getLogger().info("Attempting Reconnect for: " + user.getName());
 				instance.reconnectIfOnline(user, server);
-			}
+			} else {
+				// Invoke default behavior if event has been cancelled and disconnect the player.
+				instance.getLogger().info("Disconnecting Player: " + user.getName() + " because plugin cancelled the reconnect event");
+				user.disconnect0(ComponentSerializer.parse(kick.getMessage())); //Send the normal kick message
+			}	
+			server.setObsolete(true);
+		} else {
+			// Call ServerKickEvent if it is not a reconnect message
+			ServerKickEvent event = bungee.getPluginManager().callEvent(new ServerKickEvent(user, server.getInfo(), ComponentSerializer.parse(kick.getMessage()), def, ServerKickEvent.State.CONNECTED));
+			if (!event.isCancelled() && event.getCancelServer() != null) {
+				instance.getLogger().info("Connecting: " + user.getName() + " to " + event.getCancelServer().getName() + " because the kick event was cancelled by another plugin");
+				user.connectNow(event.getCancelServer(), Reason.KICK_REDIRECT);
+				server.setObsolete(true);
+			}	
 		}
-		server.setObsolete(true);
-
+		
 		// Throw Exception so that the Packet won't be send to the Minecraft Client.
 		throw CancelSendSignal.INSTANCE;
+	}
+	
+	
+	public boolean isShutdownKick(String message) {
+		if (instance.usesPattern()) {
+			return instance.getShutdownPattern().matcher(message).matches();
+		} else {
+			return instance.getShutdownMessage().equals(message);
+		}
 	}
 }
