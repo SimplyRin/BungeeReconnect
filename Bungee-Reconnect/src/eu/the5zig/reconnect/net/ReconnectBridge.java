@@ -96,7 +96,6 @@ public class ReconnectBridge extends DownstreamBridge {
 			// Call ServerKickEvent if it is not a reconnect message
 			ServerKickEvent event = bungee.getPluginManager().callEvent(new ServerKickEvent(user, server.getInfo(), ComponentSerializer.parse(kick.getMessage()), def, ServerKickEvent.State.CONNECTED));
 			if (!event.isCancelled() && event.getCancelServer() != null) {
-				instance.getLogger().info("Connecting: " + user.getName() + " to " + event.getCancelServer().getName() + " because the kick event was cancelled by another plugin");
 				user.connectNow(event.getCancelServer(), Reason.KICK_REDIRECT);
 				server.setObsolete(true);
 			}	
