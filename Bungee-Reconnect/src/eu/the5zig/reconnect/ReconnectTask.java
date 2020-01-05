@@ -38,7 +38,6 @@ public class ReconnectTask {
 	private ScheduledTask reconnectUpdatesTask = null;
 	private boolean reconnectUpdates = true;
 
-	private int visualTries;
 	private int tries;
 
 	public ReconnectTask(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server, long startTime) {
@@ -103,7 +102,6 @@ public class ReconnectTask {
 		if (startTime + instance.getDelayBeforeTrying() <= System.currentTimeMillis()) {
 			tries++;
 		}
-		visualTries++;
 		
 		//Create runnable if not existing; send tiles and action bar updates every 200 Miliseconds
 		startSendingReconnectUpdates();
@@ -142,18 +140,18 @@ public class ReconnectTask {
 		};
 
 		// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-		Bootstrap b = new Bootstrap().channel(PipelineUtils.getChannel()).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
+		Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel()).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
 
 		// Windows is bugged, multi homed users will just have to live with random connecting IPs
 		if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows()) {
-			b.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
+			bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
 		}
-		b.connect().addListener(listener);
+		bootstrap.connect().addListener(listener);
 	}
 	
 	private void sendConnectUpdates() {
 		ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
-			if (Objects.equals(user.getServer(), server)) {//because server A will not be A after A restarts, while server B will just be a reference held by this
+			if (Objects.equals(user.getServer(), server)) {//because server connection A will not be A after user moves to A, while server connection B will just be a reference held by this
 				//Send keep alive packet so user will not disconnect if the server feels like not sending any for whatever reason;
 				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
 				
@@ -231,7 +229,7 @@ public class ReconnectTask {
 	private Title createConnectingTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(EMPTY);
-		title.subTitle(new TextComponent(instance.getConnectingTitle()));
+		title.subTitle(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", getDots())));
 		title.stay(120);
 		title.fadeIn(0);
 		title.fadeOut(10);
@@ -243,7 +241,7 @@ public class ReconnectTask {
 	 * Sends an Action Bar Message containing the connect-text to the player.
 	 */
 	private void sendConnectActionBar(UserConnection user) {
-		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar()));
+		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar().replace("{%dots%}", getDots())));
 	}
 
 	/**
@@ -281,9 +279,10 @@ public class ReconnectTask {
 	 * @return a String that is made of dots for the "dots animation".
 	 */
 	private String getDots() {
+		int time = (int) (System.currentTimeMillis() - startTime)/1000;
 		String dots = "";
 
-		for (int i = 0, max = visualTries % 4; i < max; i++) {
+		for (int i = 0, max = time % 4; i < max; i++) {
 			dots += ".";
 		}
 
