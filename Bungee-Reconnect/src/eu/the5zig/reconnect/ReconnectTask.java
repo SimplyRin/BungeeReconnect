@@ -194,6 +194,7 @@ public class ReconnectTask {
 		if (reconnectUpdatesTask != null) {
 			reconnectUpdates = false;
 			reconnectUpdatesTask.cancel();
+			reconnectUpdatesTask = null;
 		}
 	}
 
@@ -254,7 +255,7 @@ public class ReconnectTask {
 		title.title(EMPTY);
 		title.subTitle(new TextComponent(instance.getFailedTitle()));
 		title.stay(120);
-		title.fadeIn(10);
+		title.fadeIn(0);
 		title.fadeOut(10);
 
 		return title;
