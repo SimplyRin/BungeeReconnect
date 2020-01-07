@@ -151,7 +151,7 @@ public class ReconnectTask {
 	
 	private void sendConnectUpdates() {
 		ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
-			if (Objects.equals(user.getServer(), server)) {//because server connection A will not be A after user moves to A, while server connection B will just be a reference held by this
+			if (Objects.equals(user.getServer(), server)) {//because server connection A will not be B after user moves, while server connection B will just be a reference held by this
 				//Send keep alive packet so user will not disconnect if the server feels like not sending any for whatever reason;
 				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
 				
