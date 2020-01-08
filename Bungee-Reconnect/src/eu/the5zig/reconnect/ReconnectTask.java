@@ -107,46 +107,56 @@ public class ReconnectTask {
 		startSendingReconnectUpdates();
 
 		// Establish connection to the server.
-		ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
-		ChannelFutureListener listener = new ChannelFutureListener() {
+		try {
+			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
+			ChannelFutureListener listener = new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) throws Exception {
+					if (future.isSuccess()
+							&& startTime + instance.getDelayBeforeTrying() <= System.currentTimeMillis()) {
+						// If reconnected successfully, remove from map and send another fancy title.
+						instance.cancelReconnectTask(user.getUniqueId());
+
+						//Sends keep alive packet while server does plugin things
+						//Also sends titles and action bars
+						sendConnectUpdates();
+					} else {
+						future.channel().close();
+
+						// Schedule next reconnect.
+						retryReconnect();
+					}
+				}
+			};
+			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
+			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel()).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
+
+			// Windows is bugged, multi homed users will just have to live with random connecting IPs
+			if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows()) {
+				bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
+			}
+			
+			bootstrap.connect().addListener(listener);
+		} catch (ChannelException e) { //If an exception occurs on the channel, such as a readTimeoutException, or any other channel exception, retry the reconnect
+			// Schedule next reconnect.
+			retryReconnect();
+		}	
+	}
+	
+	public void retryReconnect() {
+		// Remove pending reconnect because we will retry later on
+		user.getPendingConnects().remove(target);
+		Utils.scheduleAsync(instance, new Runnable() {
 			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				if (future.isSuccess()
-						&& startTime + instance.getDelayBeforeTrying() <= System.currentTimeMillis()) {
-					// If reconnected successfully, remove from map and send another fancy title.
-					instance.cancelReconnectTask(user.getUniqueId());
-
-					//Sends keep alive packet while server does plugin things
-					//Also sends titles and action bars
-					sendConnectUpdates();
+			public void run() {
+				// Only retry to reconnect the user if he is still online and hasn't been moved to another server.
+				if (instance.isUserOnline(user) && Objects.equals(user.getServer(), server)) {
+					tryReconnect();
 				} else {
-					future.channel().close();
-					user.getPendingConnects().remove(target);
-
-					// Schedule next reconnect.
-					Utils.scheduleAsync(instance, new Runnable() {
-						@Override
-						public void run() {
-							// Only retry to reconnect the user if he is still online and hasn't been moved to another server.
-							if (instance.isUserOnline(user) && Objects.equals(user.getServer(), server)) {
-								tryReconnect();
-							} else {
-								instance.cancelReconnectTask(user.getUniqueId());
-							}
-						}
-					}, instance.getReconnectMillis(), TimeUnit.MILLISECONDS);
+					instance.cancelReconnectTask(user.getUniqueId());
 				}
 			}
-		};
-
-		// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-		Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel()).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
-
-		// Windows is bugged, multi homed users will just have to live with random connecting IPs
-		if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows()) {
-			bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
-		}
-		bootstrap.connect().addListener(listener);
+		}, instance.getReconnectMillis(), TimeUnit.MILLISECONDS);
 	}
 	
 	private void sendConnectUpdates() {
@@ -199,66 +209,17 @@ public class ReconnectTask {
 	}
 
 	/**
-	 * Creates a Title containing the reconnect-text.
-	 *
-	 * @return a Title that can be send to the player.
-	 */
-	private Title createReconnectTitle() {
-		Title title = ProxyServer.getInstance().createTitle();
-		title.title(EMPTY);
-		title.subTitle(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", getDots())));
-		// Stay at least as long as the longest possible connect-time can be.
-		title.stay((instance.getReconnectMillis() + instance.getReconnectTimeout() + 1000) / 1000 * 20);
-		title.fadeIn(0);
-		title.fadeOut(0);
-
-		return title;
-	}
-
-	/**
 	 * Sends an Action Bar Message containing the reconnect-text to the player.
 	 */
 	private void sendReconnectActionBar(UserConnection user) {
 		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getReconnectingActionBar().replace("{%dots%}", getDots())));
 	}
-
-	/**
-	 * Creates a Title containing the connecting-text.
-	 *
-	 * @return a Title that can be send to the player.
-	 */
-	private Title createConnectingTitle() {
-		Title title = ProxyServer.getInstance().createTitle();
-		title.title(EMPTY);
-		title.subTitle(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", getDots())));
-		title.stay(120);
-		title.fadeIn(0);
-		title.fadeOut(10);
-
-		return title;
-	}
-
+	
 	/**
 	 * Sends an Action Bar Message containing the connect-text to the player.
 	 */
 	private void sendConnectActionBar(UserConnection user) {
 		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar().replace("{%dots%}", getDots())));
-	}
-
-	/**
-	 * Created a Title containing the failed-text.
-	 *
-	 * @return a Title that can be send to the player.
-	 */
-	private Title createFailedTitle() {
-		Title title = ProxyServer.getInstance().createTitle();
-		title.title(EMPTY);
-		title.subTitle(new TextComponent(instance.getFailedTitle()));
-		title.stay(120);
-		title.fadeIn(0);
-		title.fadeOut(10);
-
-		return title;
 	}
 
 	/**
@@ -274,6 +235,61 @@ public class ReconnectTask {
 				user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
 			}
 		}, 5L, TimeUnit.SECONDS);
+	}
+	
+	/**
+	 * Creates a Title containing the reconnect-text.
+	 *
+	 * @return a Title that can be send to the player.
+	 */
+	private Title createReconnectTitle() {
+		Title title = ProxyServer.getInstance().createTitle();
+		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", getDots())));
+		if (!instance.getReconnectingSubtitle().isEmpty()) {
+			title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", getDots())));
+		}
+		// Stay at least as long as the longest possible connect-time can be.
+		title.stay(120);
+		title.fadeIn(0);
+		title.fadeOut(0);
+
+		return title;
+	}
+
+	/**
+	 * Creates a Title containing the connecting-text.
+	 *
+	 * @return a Title that can be send to the player.
+	 */
+	private Title createConnectingTitle() {
+		Title title = ProxyServer.getInstance().createTitle();
+		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", getDots())));
+		if (!instance.getConnectingSubtitle().isEmpty()) {
+			title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", getDots())));
+		}
+		title.stay(120);
+		title.fadeIn(0);
+		title.fadeOut(10);
+
+		return title;
+	}
+	
+	/**
+	 * Created a Title containing the failed-text.
+	 *
+	 * @return a Title that can be send to the player.
+	 */
+	private Title createFailedTitle() {
+		Title title = ProxyServer.getInstance().createTitle();
+		title.title(new TextComponent(instance.getFailedTitle()));
+		if (!instance.getFailedSubtitle().isEmpty()) {
+			title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", getDots())));
+		}		
+		title.stay(120);
+		title.fadeIn(0);
+		title.fadeOut(10);
+
+		return title;
 	}
 
 	/**

@@ -9,7 +9,6 @@ import eu.the5zig.reconnect.api.ServerReconnectEvent;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -30,11 +29,14 @@ import java.util.regex.Pattern;
 
 public class Reconnect extends Plugin implements Listener {
 
-	private String reconnectingTitle = "&7Reconnecting{%dots%}";
-	private String reconnectingActionBar = "&a&lPlease do not leave! &7Reconnecting to server{%dots%}";
-	private String connectingTitle = "&aConnecting..";
-	private String connectingActionBar = "&7Connecting you to the server..";
-	private String failedTitle = "&cReconnecting failed!";
+	private String reconnectingTitle = "Reconnecting{%dots%}";
+	private String reconnectingSubtitle = "Please wait{%dots%}";
+	private String reconnectingActionBar = "Reconnecting to server{%dots%}";
+	private String connectingTitle = "Connecting..";
+	private String connectingSubtitle = "Please wait";
+	private String connectingActionBar = "Connecting you to the server..";
+	private String failedTitle = "Reconnecting failed!";
+	private String failedSubtitle = "";
 	private String failedActionBar = "&eYou have been moved to the fallback server!";
 	private int delayBeforeTrying = 60000;
 	private int maxReconnectTries = 20;
@@ -76,42 +78,50 @@ public class Reconnect extends Plugin implements Listener {
 				int pluginConfigVersion = ConfigurationProvider.getProvider(YamlConfiguration.class).load(getResourceAsStream("config.yml")).getInt("version");
 				if (configuration.getInt("version") < pluginConfigVersion) {
 					getLogger().info("Found an old config version! Replacing with new one...");
-					File oldConfigFile = new File(getDataFolder(), "config.old.yml");
+					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + pluginConfigVersion + ".yml");
 					Files.move(configFile, oldConfigFile);
 					getLogger().info("A backup of your old config has been saved to " + oldConfigFile + "!");
 					saveDefaultConfig(configFile);
-					return;
-				}
-
-				reconnectingTitle = configuration.getString("reconnecting-text.title", reconnectingTitle);
-				reconnectingActionBar = configuration.getString("reconnecting-text.actionbar", reconnectingActionBar);
-				connectingTitle = configuration.getString("connecting-text.title", connectingTitle);
-				connectingActionBar = configuration.getString("connecting-text.actionbar", connectingActionBar);
-				failedTitle = configuration.getString("failed-text.title", failedTitle);
-				failedActionBar = configuration.getString("failed-text.actionbar", failedActionBar);
-				delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
-				maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
-				reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), 0);
-				reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
-				ignoredServers = configuration.getStringList("ignored-servers");
-				String shutdownText = configuration.getString("shutdown.text");
-				if (Strings.isNullOrEmpty(shutdownText)) {
-					shutdownMessage = null;
-					shutdownPattern = null;
-				} else if (!configuration.getBoolean("shutdown.regex")) {
-					shutdownMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes
-				} else {
-					try {
-						shutdownPattern = Pattern.compile(shutdownText);
-						shutdownMessage = null;
-						usesPattern = true;
-					} catch (Exception e) {
-						getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
-					}
 				}
 			} else {
 				saveDefaultConfig(configFile);
 			}
+			
+			Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+			
+			reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title", reconnectingTitle));
+			reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.subtitle", reconnectingSubtitle));
+			reconnectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.actionbar", reconnectingActionBar));
+			
+			connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title", connectingTitle));
+			connectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.subtitle", connectingSubtitle));
+			connectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.actionbar", connectingActionBar));
+			
+			failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title", failedTitle));
+			failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle", failedSubtitle));
+			failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar", failedActionBar));
+			
+			delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
+			maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
+			reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), 0);
+			reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
+			ignoredServers = configuration.getStringList("ignored-servers");
+			String shutdownText = configuration.getString("shutdown.text");
+			if (Strings.isNullOrEmpty(shutdownText)) {
+				shutdownMessage = null;
+				shutdownPattern = null;
+			} else if (!configuration.getBoolean("shutdown.regex")) {
+				shutdownMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes
+			} else {
+				try {
+					shutdownPattern = Pattern.compile(shutdownText);
+					shutdownMessage = null;
+					usesPattern = true;
+				} catch (Exception e) {
+					getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
+				}
+			}
+			
 		} catch (IOException e) {
 			getLogger().warning("Could not load config, using default values...");
 			e.printStackTrace();
@@ -136,12 +146,11 @@ public class Reconnect extends Plugin implements Listener {
 		//
 		// @see net.md_5.bungee.ServerConnector#L249
 
-		ProxyServer bungee = getProxy();
 		UserConnection user = (UserConnection) event.getPlayer();
 		ServerConnection server = user.getServer();
 		ChannelWrapper ch = server.getCh();
 
-		ReconnectBridge bridge = new ReconnectBridge(this, bungee, user, server);
+		ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, server);
 		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 
 		// Cancel the reconnect task (if any exist) and clear title and action bar.
@@ -229,27 +238,31 @@ public class Reconnect extends Plugin implements Listener {
 	}
 
 	public String getReconnectingTitle() {
-		return ChatColor.translateAlternateColorCodes('&', reconnectingTitle);
+		return reconnectingTitle;
 	}
 
 	public String getReconnectingActionBar() {
-		return ChatColor.translateAlternateColorCodes('&', reconnectingActionBar);
+		return reconnectingActionBar;
 	}
 
 	public String getConnectingTitle() {
-		return ChatColor.translateAlternateColorCodes('&', connectingTitle);
+		return connectingTitle;
+	}
+	
+	public String getConnectingSubtitle() {
+		return connectingSubtitle;
 	}
 
 	public String getConnectingActionBar() {
-		return ChatColor.translateAlternateColorCodes('&', connectingActionBar);
+		return connectingActionBar;
 	}
 
 	public String getFailedTitle() {
-		return ChatColor.translateAlternateColorCodes('&', failedTitle);
+		return failedTitle;
 	}
 
 	public String getFailedActionBar() {
-		return ChatColor.translateAlternateColorCodes('&', failedActionBar);
+		return failedActionBar;
 	}
 
 	public int getDelayBeforeTrying() {
@@ -278,6 +291,14 @@ public class Reconnect extends Plugin implements Listener {
 
 	public boolean usesPattern() {
 		return usesPattern;
+	}
+
+	public String getReconnectingSubtitle() {
+		return reconnectingSubtitle;
+	}
+
+	public String getFailedSubtitle() {
+		return failedSubtitle;
 	}
 
 }
