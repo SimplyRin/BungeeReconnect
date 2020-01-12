@@ -6,6 +6,7 @@ import com.google.common.io.Files;
 
 import eu.the5zig.reconnect.net.ReconnectBridge;
 import eu.the5zig.reconnect.api.ServerReconnectEvent;
+import eu.the5zig.reconnect.command.CommandReconnect;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -57,17 +58,20 @@ public class Reconnect extends Plugin implements Listener {
 	public void onEnable() {
 		getLogger().setLevel(Level.FINE);
 
+		// setup command
+		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
+		
 		// load Configuration
 		loadConfig();
 		
 		// register Listener
 		getProxy().getPluginManager().registerListener(this, this);
 	}
-
+	
 	/**
 	 * Tries to load the config from the config file or creates a default config if the file does not exist.
 	 */
-	private void loadConfig() {
+	public boolean loadConfig() {
 		try {
 			if (!getDataFolder().exists() && !getDataFolder().mkdir()) {
 				throw new IOException("Could not create plugin directory!");
@@ -119,12 +123,14 @@ public class Reconnect extends Plugin implements Listener {
 					usesPattern = true;
 				} catch (Exception e) {
 					getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
+					return false;
 				}
 			}
-			
+			return true;
 		} catch (IOException e) {
 			getLogger().warning("Could not load config, using default values...");
 			e.printStackTrace();
+			return false;
 		}
 	}
 
