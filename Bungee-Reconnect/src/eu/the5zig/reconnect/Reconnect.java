@@ -47,12 +47,11 @@ public class Reconnect extends Plugin implements Listener {
 	
 	private String shutdownMessage = "Server closed";
 	private Pattern shutdownPattern = null;
-	private boolean usesPattern = false;
-
+	
 	/**
 	 * A HashMap containing all reconnect tasks.
 	 */
-	private HashMap<UUID, ReconnectTask> reconnectTasks = new HashMap<>();
+	private HashMap<UUID, Reconnecter> reconnecters = new HashMap<UUID, Reconnecter>();
 
 	@Override
 	public void onEnable() {
@@ -72,6 +71,7 @@ public class Reconnect extends Plugin implements Listener {
 	 * Tries to load the config from the config file or creates a default config if the file does not exist.
 	 */
 	public boolean loadConfig() {
+		reconnecters.keySet().forEach(uid -> cancelReconnecterFor(uid));
 		try {
 			if (!getDataFolder().exists() && !getDataFolder().mkdir()) {
 				throw new IOException("Could not create plugin directory!");
@@ -107,20 +107,18 @@ public class Reconnect extends Plugin implements Listener {
 			
 			delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
 			maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
-			reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), 0);
 			reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
+			reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), reconnectTimeout);
 			ignoredServers = configuration.getStringList("ignored-servers");
 			String shutdownText = configuration.getString("shutdown.text");
 			if (Strings.isNullOrEmpty(shutdownText)) {
-				shutdownMessage = null;
+				shutdownMessage = "";
 				shutdownPattern = null;
 			} else if (!configuration.getBoolean("shutdown.regex")) {
 				shutdownMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes
 			} else {
 				try {
 					shutdownPattern = Pattern.compile(shutdownText);
-					shutdownMessage = null;
-					usesPattern = true;
 				} catch (Exception e) {
 					getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
 					return false;
@@ -161,7 +159,7 @@ public class Reconnect extends Plugin implements Listener {
 
 		// Cancel the reconnect task (if any exist) and clear title and action bar.
 		if (isReconnecting(user.getUniqueId())) {
-			cancelReconnectTask(user.getUniqueId());
+			cancelReconnecterFor(user.getUniqueId());
 		}
 	}
 
@@ -203,7 +201,7 @@ public class Reconnect extends Plugin implements Listener {
 				reconnect(user, server);
 			}
 		} else {
-			cancelReconnectTask(user.getUniqueId());
+			cancelReconnecterFor(user.getUniqueId());
 		}
 	}
 
@@ -214,11 +212,11 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param server The Server the User should be connected to.
 	 */
 	private void reconnect(UserConnection user, ServerConnection server) {
-		ReconnectTask reconnectTask = reconnectTasks.get(user.getUniqueId());
-		if (reconnectTask == null) {
-			reconnectTasks.put(user.getUniqueId(), reconnectTask = new ReconnectTask(this, getProxy(), user, server, System.currentTimeMillis()));
+		Reconnecter reconnecter = reconnecters.get(user.getUniqueId());
+		if (reconnecter == null) {
+			reconnecters.put(user.getUniqueId(), reconnecter = new Reconnecter(this, getProxy(), user, server));
 		}
-		reconnectTask.tryReconnect();
+		reconnecter.start();
 	}
 
 	/**
@@ -226,8 +224,8 @@ public class Reconnect extends Plugin implements Listener {
 	 *
 	 * @param uuid The UniqueId of the User.
 	 */
-	void cancelReconnectTask(UUID uuid) {
-		ReconnectTask task = reconnectTasks.remove(uuid);
+	void cancelReconnecterFor(UUID uuid) {
+		Reconnecter task = reconnecters.remove(uuid);
 		if (task != null && getProxy().getPlayer(uuid) != null) {
 			task.cancel();
 		}
@@ -240,7 +238,7 @@ public class Reconnect extends Plugin implements Listener {
 	 * @return true, if there is a task that tries to reconnect the User to a server.
 	 */
 	public boolean isReconnecting(UUID uuid) {
-		return reconnectTasks.containsKey(uuid);
+		return reconnecters.containsKey(uuid);
 	}
 
 	public String getReconnectingTitle() {
@@ -296,7 +294,15 @@ public class Reconnect extends Plugin implements Listener {
 	}
 
 	public boolean usesPattern() {
-		return usesPattern;
+		return shutdownPattern != null;
+	}
+	
+	public boolean isShutdownKick(String message) {
+		if (shutdownPattern != null) {
+			return shutdownPattern.matcher(message).matches();
+		} else {
+			return shutdownMessage.equals(message);
+		}
 	}
 
 	public String getReconnectingSubtitle() {

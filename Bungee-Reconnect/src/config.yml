@@ -36,15 +36,15 @@ delay-before-trying: 10000
 
 # The maximum amount of reconnect tries the plugin should make, before either connecting the player
 # to your fallback-server or disconnecting him. This value cannot be less than 1.
-max-reconnect-tries: 25
+max-reconnect-tries: 20
 
 # The amount of milliseconds the plugin should wait before making a new reconnect try. This value
-# cannot be less than zero.
+# cannot be less or equal to reconnect-timeout.
 reconnect-time: 4000
 
 # The amount of milliseconds the plugin should wait for a reply from the previous server, until it
 # decides to abort that reconnect try. This value cannot be less than 1000.
-reconnect-timeout: 6000
+reconnect-timeout: 3500
 
 # A List containing all servers that don't allow automatic reconnecting.
 ignored-servers: [noReconnects1, noReconnects2]
@@ -58,5 +58,6 @@ shutdown:
   # You can still use the "ServerReconnectEvent" as a plugin developer to decide on your own whether the user should be reconnected automatically
   # or not.
 
-  text: "(?i)server.*(restart|closed).*"
+  text: "((?i)(server closed|server is restarting))+$"
+  #text: "(?i).*(?i)server.*(restart|closed)(?i).*"
   regex: true

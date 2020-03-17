@@ -50,7 +50,7 @@ public class ReconnectBridge extends DownstreamBridge {
 
 		// Fire ServerReconnectEvent and give plugins the possibility to cancel server reconnecting.
 		if (!instance.fireServerReconnectEvent(user, server)) {
-			// Invoke default behaviour if event has been cancelled.
+			// Invoke default behavior if event has been cancelled.
 
 			@SuppressWarnings("deprecation")
 			ServerInfo def = bungee.getServerInfo(user.getPendingConnection().getListener().getFallbackServer());
@@ -76,15 +76,14 @@ public class ReconnectBridge extends DownstreamBridge {
 			def = null;
 		}
 		String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage()))); // needs to be parsed like that...
-		instance.getLogger().info("User: " + user.getName() + " Kicked from " + server.getInfo().getName() + " with reason \"" + kickMessage +"\"");
 		
 		//Check if kickMessage is a restart message
 		//Handle kick event only if reconnect message does not match, because if it does we're not kicking them.
-		if (isShutdownKick(kickMessage)) {
+		if (instance.isShutdownKick(kickMessage)) {
+			instance.getLogger().info("Attempting reconnect for user: \"" + user.getName() + "\" on server \"" + server.getInfo().getName() + "\"");
 			// As always, we fire a ServerReconnectEvent and give plugins the possibility to cancel server reconnecting.
 			if (instance.fireServerReconnectEvent(user, server)) {
 				// Otherwise, reconnect the User if he is still online.
-				instance.getLogger().info("Attempting Reconnect for: " + user.getName());
 				instance.reconnectIfOnline(user, server);
 			} else {
 				// Invoke default behavior if event has been cancelled and disconnect the player.
@@ -105,12 +104,4 @@ public class ReconnectBridge extends DownstreamBridge {
 		throw CancelSendSignal.INSTANCE;
 	}
 	
-	
-	public boolean isShutdownKick(String message) {
-		if (instance.usesPattern()) {
-			return instance.getShutdownPattern().matcher(message).matches();
-		} else {
-			return instance.getShutdownMessage().equals(message);
-		}
-	}
 }
