@@ -196,12 +196,14 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param server The Server the User should be connected to.
 	 */
 	public void reconnectIfOnline(UserConnection user, ServerConnection server) {
-		if (isUserOnline(user)) {
-			if (!isReconnecting(user.getUniqueId())) {
-				reconnect(user, server);
-			}
-		} else {
-			cancelReconnecterFor(user.getUniqueId());
+		synchronized (reconnecters) {
+			if (isUserOnline(user)) {
+				if (!isReconnecting(user.getUniqueId())) {
+					reconnect(user, server);
+				}
+			} else {
+				cancelReconnecterFor(user.getUniqueId());
+			}	
 		}
 	}
 
@@ -212,11 +214,13 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param server The Server the User should be connected to.
 	 */
 	private void reconnect(UserConnection user, ServerConnection server) {
-		Reconnecter reconnecter = reconnecters.get(user.getUniqueId());
-		if (reconnecter == null) {
-			reconnecters.put(user.getUniqueId(), reconnecter = new Reconnecter(this, getProxy(), user, server));
+		synchronized (reconnecters) {
+			Reconnecter reconnecter = reconnecters.get(user.getUniqueId());
+			if (reconnecter == null) {
+				reconnecters.put(user.getUniqueId(), reconnecter = new Reconnecter(this, getProxy(), user, server));
+			}
+			reconnecter.start();	
 		}
-		reconnecter.start();
 	}
 
 	/**
@@ -225,9 +229,11 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param uuid The UniqueId of the User.
 	 */
 	void cancelReconnecterFor(UUID uuid) {
-		Reconnecter task = reconnecters.remove(uuid);
-		if (task != null && getProxy().getPlayer(uuid) != null) {
-			task.cancel();
+		synchronized (reconnecters) {
+			Reconnecter task = reconnecters.remove(uuid);
+			if (task != null && getProxy().getPlayer(uuid) != null) {
+				task.cancel();
+			}	
 		}
 	}
 
