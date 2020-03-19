@@ -57,7 +57,7 @@ public class Reconnect extends Plugin implements Listener {
 	public void onEnable() {
 		getLogger().setLevel(Level.FINE);
 
-		// setup command
+		// setup Command
 		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
 		
 		// load Configuration

@@ -83,28 +83,36 @@ public class Reconnecter {
 				} else {// If the reconnect tries are within limits, do this instead:
 					
 					/*
-					 * If the currentFuture created in tryReconnect() is not null
-					 * close it and set it to null as it took too long to connect to the server.
+					 * If the current channel future set in tryReconnect is
+					 * not null, and the channel is inactive/closed close it and retry the reconnect
+					 * after setting it to null for the next cycle
 					 */
 					if (currentFuture != null) {
-						// call this runnable again if there is leftover time for the future
-						long leftoverTime = System.currentTimeMillis()-(System.currentTimeMillis()+(instance.getReconnectMillis() - instance.getReconnectTimeout()));
-						if (leftoverTime > 50) {
-							Sched.scheduleAsync(instance, run, leftoverTime, TimeUnit.MILLISECONDS);
+						// If the chanel is active (open and ready/active right now) there is no need to close it or attempt another reconnect
+						// Instead wait for it to time out
+						if (currentFuture.channel().isActive()) {
+							retry();
 							return;
 						}
 						currentFuture.channel().close();
 						currentFuture = null;
 					}
 					// Attempt a reconnect
-					tryReconnect();	
+					tryReconnect();
 				}
-			} else {
+			} else { //Otherwise cancel this reconnecter as it ain't needed no more
 				instance.cancelReconnecterFor(user.getUniqueId());
 			}
 		}
 	};
 
+	/**
+	 * 
+	 * @param instance The instance of reconnect
+	 * @param bungee The proxyserver
+	 * @param user The user to reconnect
+	 * @param server The server connection the user will try to reconnect to
+	 */
 	public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
 		this.instance = instance;
 		this.bungee = bungee;
@@ -113,9 +121,15 @@ public class Reconnecter {
 		this.target = server.getInfo();
 	}
 	
-	
+	/**
+	 * Only when called this reconnecter will attempt to function
+	 * Can only be called once.
+	 * 
+	 * Once the reconnecter is finished/cancelled This method will not work!
+	 * Create a new instance instead
+	 */
 	public void start() {
-		if (running) {
+		if (running && !cancelled) {
 			return;
 		}
 		running = true;
@@ -135,7 +149,7 @@ public class Reconnecter {
 	 * Tries to reconnect the User to the specified Server. In case that fails, this method will be executed again
 	 * after a short timeout.
 	 */
-	public void tryReconnect() {
+	private void tryReconnect() {
 
 		try {
 			// If we are already connecting to a server, cancel the reconnect task.
@@ -173,6 +187,11 @@ public class Reconnecter {
 		}
 	}
 	
+	
+	/**
+	 * If called and the reconnecter is running this will mimic standard proxy behavior
+	 * and will kick the player back to fall back (if exists) if not kick them to the title screen
+	 */
 	public void failReconnect() {
 		cancel();
 
@@ -203,7 +222,7 @@ public class Reconnecter {
 	}
 
 	private void startSendingUpdates() {
-		if (updates == true) {
+		if (updates == true) {//Only allow invocation once
 			return;
 		}
 		updates = true;
@@ -237,6 +256,7 @@ public class Reconnecter {
 						sendConnectActionBar(user);
 					}
 				}
+				//Loop
 				startSendingUpdatesAbs();
 			} else {
 				stopSendingUpdates();
@@ -351,7 +371,8 @@ public class Reconnecter {
 	}
 
 	/**
-	 * Resets the title and action bar message if the player is still online
+	 * Cancels this reconnecter
+	 * Note: if the player is already connecting to the server this will not stop it.
 	 */
 	public void cancel() {
 		cancelled = true;

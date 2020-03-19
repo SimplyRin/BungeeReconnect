@@ -18,6 +18,7 @@ public class CommandReconnect extends Command implements TabExecutor {
 	
 	private final Reconnect instance;
 	
+	private static final BaseComponent[] help = new ComponentBuilder().color(ChatColor.RED).append("Usage: /reconnect").append(CmdUtil.jnline).append(" reload").create();	
 	private static final BaseComponent[] cmdSubNotFound = new ComponentBuilder().color(ChatColor.RED).append("Subcommand not found").create();
 	
 	private static final BaseComponent[] cmdFeedbackReloadAttempt = new ComponentBuilder().color(ChatColor.GOLD).append("Reloading...").create();
@@ -46,6 +47,8 @@ public class CommandReconnect extends Command implements TabExecutor {
 				sender.sendMessage(cmdSubNotFound);
 				break;
 			}
+		} else {
+			sender.sendMessage(help);
 		}
 	}
 	
