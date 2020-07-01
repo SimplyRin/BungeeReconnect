@@ -47,6 +47,7 @@ public class Reconnect extends Plugin implements Listener {
 	
 	private String shutdownMessage = "Server closed";
 	private Pattern shutdownPattern = null;
+	private boolean stripColor = true;
 	
 	/**
 	 * A HashMap containing all reconnect tasks.
@@ -110,6 +111,7 @@ public class Reconnect extends Plugin implements Listener {
 			reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
 			reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), reconnectTimeout);
 			ignoredServers = configuration.getStringList("ignored-servers");
+			stripColor = configuration.getBoolean("shutdown.strip-color");
 			String shutdownText = configuration.getString("shutdown.text");
 			if (Strings.isNullOrEmpty(shutdownText)) {
 				shutdownMessage = "";
@@ -304,6 +306,9 @@ public class Reconnect extends Plugin implements Listener {
 	}
 	
 	public boolean isShutdownKick(String message) {
+		if (stripColor) {
+			message = ChatColor.stripColor(message);
+		}
 		if (shutdownPattern != null) {
 			return shutdownPattern.matcher(message).matches();
 		} else {

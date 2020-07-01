@@ -26,7 +26,7 @@ public class CommandReconnect extends Command implements TabExecutor {
 	private static final BaseComponent[] cmdFeedbackReloadComplete = new ComponentBuilder().color(ChatColor.GREEN).append("Reload complete.").create();
 
 	public CommandReconnect(Reconnect instance) {
-		super("reconnect", "reconnect.command", new String[] {"reeeeeconnect"});
+		super("bungee-reconnect", "reconnect.command", new String[] {"reconnect"});
 		this.instance = instance;
 	}
 
