@@ -24,12 +24,17 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class Reconnect extends Plugin implements Listener {
-
+	
+	private String[] dots = new String[] {".", "..", "..."};
+	private int dots_milis = 1000;
 	private String reconnectingTitle = "Reconnecting{%dots%}";
 	private String reconnectingSubtitle = "Please wait{%dots%}";
 	private String reconnectingActionBar = "Reconnecting to server{%dots%}";
@@ -62,75 +67,150 @@ public class Reconnect extends Plugin implements Listener {
 		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
 		
 		// load Configuration
-		loadConfig();
-		
-		// register Listener
+		tryReloadConfig(getLogger());
+	}
+	
+	private void registerListener() {
+		unregisterListener();
 		getProxy().getPluginManager().registerListener(this, this);
 	}
 	
+	private void unregisterListener() {
+		getProxy().getPluginManager().unregisterListener(this);
+	}
+	
 	/**
+	 * Cancels all active reconnectors (if any)
 	 * Tries to load the config from the config file or creates a default config if the file does not exist.
+	 * Then it loads all required values into active memory and processes them as needed.
+	 * @return If the configuration was successfully reloaded. if false, reconnect will disable functionality until rectified.
 	 */
-	public boolean loadConfig() {
-		reconnecters.keySet().forEach(uid -> cancelReconnecterFor(uid));
+	public boolean tryReloadConfig(Logger log) {
+		// disable listeners
+		unregisterListener();
+		
+		// cancel all reconnectors
+		synchronized (reconnecters) {
+			reconnecters.keySet().forEach(uid -> cancelReconnecterFor(uid));	
+		}
+		
 		try {
-			if (!getDataFolder().exists() && !getDataFolder().mkdir()) {
-				throw new IOException("Could not create plugin directory!");
-			}
-			File configFile = new File(getDataFolder(), "config.yml");
+			loadConfig(log);
+			registerListener();
+			return true;
+		} catch (Throwable t) {
+			log.log(Level.SEVERE, "Error while loading config, plugin functionality disabled until situation is rectified.", t);
+			return false;
+		}
+	}
+	
+	private void loadConfig(Logger log) throws Throwable {
+		Configuration internalConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(getResourceAsStream("config.yml"));
+		
+		// define config file
+		File configFile = new File(getDataFolder(), "config.yml");
+		// create data folder if not exists already
+		if (!getDataFolder().exists() && !getDataFolder().mkdir()) {
+			throw new IOException("Couldn't Mkdirs for plugin directory \"" + getDataFolder().getPath() + "\"");
+		} else {
+			// use the internal config in the jar for version comparison and defaults
+			
+			// if config file exists check if it needs updating
 			if (configFile.exists()) {
 				Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-				int pluginConfigVersion = ConfigurationProvider.getProvider(YamlConfiguration.class).load(getResourceAsStream("config.yml")).getInt("version");
-				if (configuration.getInt("version") < pluginConfigVersion) {
-					getLogger().info("Found an old config version! Replacing with new one...");
-					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + pluginConfigVersion + ".yml");
+				int internalConfigVersion = internalConfig.getInt("version");
+				if (configuration.getInt("version") < internalConfigVersion) {
+					log.info("Found an old config version! Replacing with new one...");
+					
+					// rename the old config so that values are not lost
+					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + internalConfigVersion + ".yml");
 					Files.move(configFile, oldConfigFile);
-					getLogger().info("A backup of your old config has been saved to " + oldConfigFile + "!");
+					
+					log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
 					saveDefaultConfig(configFile);
 				}
 			} else {
 				saveDefaultConfig(configFile);
+			}	
+		}
+		
+		processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
+	}
+	
+	private void processConfig(Configuration configuration, Logger log) throws Throwable {		
+		// obtain dots animation list from config
+		List<String> dots = configuration.getStringList("dots-animation");
+		
+		// fallback to default dots animation if defined improperly to prevent AOB error
+		if (dots.size() == 0) {
+			throw new AssertionError("\"dots-animation\" was configured improperly. It must have a size of at least 1.");
+		} else {
+			// translate color codes
+			ListIterator<String> it = dots.listIterator();
+			while (it.hasNext()) {
+				it.set(ChatColor.translateAlternateColorCodes('&', it.next()));
+			}		
+			// set array atomically as other threads may still be using it.
+			this.dots = dots.toArray(new String[dots.size()]);
+		}
+		
+		// obtain dots animation delay from config
+		dots_milis = configuration.getInt("dots-animation-milis");
+		if (dots_milis < 50) {
+			dots_milis = 50;
+			log.warning("\"dots-animation-milis\" was configured improperly. It must be 50 miliseconds or greater; The value has been clamped to 50.");
+		}
+		
+		// obtain reconnecting formatting from config
+		reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title", reconnectingTitle));
+		reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.subtitle", reconnectingSubtitle));
+		reconnectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.actionbar", reconnectingActionBar));
+		
+		// obtain connecting formatting from config
+		connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title", connectingTitle));
+		connectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.subtitle", connectingSubtitle));
+		connectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.actionbar", connectingActionBar));
+		
+		// obtain failed formatting from config
+		failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title", failedTitle));
+		failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle", failedSubtitle));
+		failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar", failedActionBar));
+		
+		// obtain delays and timeouts from config
+		delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
+		maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
+		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
+		reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), reconnectTimeout);
+		
+		// obtain ignored servers from config
+		ignoredServers = configuration.getStringList("ignored-servers");
+		
+		// obtain shutdown values from config
+		stripColor = configuration.getBoolean("shutdown.strip-color");
+		String shutdownText = configuration.getString("shutdown.text");
+		
+		// check if shutdown message was defined
+		if (Strings.isNullOrEmpty(shutdownText)) {
+			// if it was not defined, use no message.
+			shutdownMessage = "";
+			shutdownPattern = null;
+		} else {
+			// check if we're stripping color codes. if so, remove formatting from messages.
+			if (stripColor) {
+				shutdownText = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes	
 			}
 			
-			Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-			
-			reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title", reconnectingTitle));
-			reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.subtitle", reconnectingSubtitle));
-			reconnectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.actionbar", reconnectingActionBar));
-			
-			connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title", connectingTitle));
-			connectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.subtitle", connectingSubtitle));
-			connectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.actionbar", connectingActionBar));
-			
-			failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title", failedTitle));
-			failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle", failedSubtitle));
-			failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar", failedActionBar));
-			
-			delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
-			maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
-			reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
-			reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), reconnectTimeout);
-			ignoredServers = configuration.getStringList("ignored-servers");
-			stripColor = configuration.getBoolean("shutdown.strip-color");
-			String shutdownText = configuration.getString("shutdown.text");
-			if (Strings.isNullOrEmpty(shutdownText)) {
-				shutdownMessage = "";
-				shutdownPattern = null;
-			} else if (!configuration.getBoolean("shutdown.regex")) {
-				shutdownMessage = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes
-			} else {
-				try {
+			try {
+				// check if regex was not enabled for shutdown message. if so, use the shutdown message.
+				if (!configuration.getBoolean("shutdown.regex")) {
+					shutdownMessage = shutdownText;
+				} else { // otherwise compile the regex pattern
 					shutdownPattern = Pattern.compile(shutdownText);
-				} catch (Exception e) {
-					getLogger().warning("Could not compile shutdown regex! Please check your config! Using default shutdown message...");
-					return false;
-				}
-			}
-			return true;
-		} catch (IOException e) {
-			getLogger().warning("Could not load config, using default values...");
-			e.printStackTrace();
-			return false;
+				}	
+			} catch (PatternSyntaxException e) {
+				log.severe("regex \"shutdown.text\" was malformed and was unable to be compiled.");
+				throw e;
+			}		
 		}
 	}
 
@@ -159,7 +239,7 @@ public class Reconnect extends Plugin implements Listener {
 		ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, server);
 		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 
-		// Cancel the reconnect task (if any exist) and clear title and action bar.
+		// Cancel the reconnect task (if any exist)
 		if (isReconnecting(user.getUniqueId())) {
 			cancelReconnecterFor(user.getUniqueId());
 		}
@@ -173,11 +253,13 @@ public class Reconnect extends Plugin implements Listener {
 	 * @return true, if the ignore list does not contain the server and the event hasn't been canceled.
 	 */
 	public boolean fireServerReconnectEvent(UserConnection user, ServerConnection server) {
+		// check if the server is supposed to be ignored for reconnects
 		if (ignoredServers.contains(server.getInfo().getName())) {
 			return false;
+		} else { // otherwise fire off a reconnect event and check if it was cancelled
+			ServerReconnectEvent event = getProxy().getPluginManager().callEvent(new ServerReconnectEvent(user, server.getInfo()));
+			return !event.isCancelled();	
 		}
-		ServerReconnectEvent event = getProxy().getPluginManager().callEvent(new ServerReconnectEvent(user, server.getInfo()));
-		return !event.isCancelled();
 	}
 
 	/**
@@ -322,6 +404,15 @@ public class Reconnect extends Plugin implements Listener {
 
 	public String getFailedSubtitle() {
 		return failedSubtitle;
+	}
+	
+	public String getDots(long time) {
+		return dots[(int) (System.currentTimeMillis()-time)/dots_milis % dots.length];
+	}
+	
+	public String[] getDots() {
+		// clone the array to prevent non-atomic modification as the array will be accessed by different threads.
+		return dots.clone();
 	}
 
 }

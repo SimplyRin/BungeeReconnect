@@ -6,6 +6,18 @@
 # while a backup of the old config will be kept as "config.old.yml".
 version: 6
 
+# This is for configuring the content of the {%dots%} placeholder animation.
+# You may use color codes
+dots-animation:
+  - "."
+  - ".."
+  - "..."
+
+# This is for configuring the timing {%dots%} placeholder animation.
+# 1000 = 1 dot per second
+# Minimum value is 50
+dots-animation-milis: 1000
+
 # The text that should be displayed, when the plugin is trying to reconnect a player.
 # Leave empty if you don't wish any title or action bar message to be displayed.
 reconnecting-text:
@@ -63,5 +75,4 @@ shutdown:
   # or not.
 
   text: "((?i)(server closed|server is restarting))+$"
-  #text: "(?i).*(?i)server.*(restart|closed)(?i).*"
   regex: true

@@ -22,7 +22,7 @@ public class CommandReconnect extends Command implements TabExecutor {
 	private static final BaseComponent[] cmdSubNotFound = new ComponentBuilder().color(ChatColor.RED).append("Subcommand not found").create();
 	
 	private static final BaseComponent[] cmdFeedbackReloadAttempt = new ComponentBuilder().color(ChatColor.GOLD).append("Reloading...").create();
-	private static final BaseComponent[] cmdFeedbackReloadError = new ComponentBuilder().color(ChatColor.RED).append("Reload errored; Check console!").create();
+	private static final BaseComponent[] cmdFeedbackReloadError = new ComponentBuilder().color(ChatColor.RED).append("Reload failed!").create();
 	private static final BaseComponent[] cmdFeedbackReloadComplete = new ComponentBuilder().color(ChatColor.GREEN).append("Reload complete.").create();
 
 	public CommandReconnect(Reconnect instance) {
@@ -36,7 +36,7 @@ public class CommandReconnect extends Command implements TabExecutor {
 			switch (args[0].toLowerCase()) {
 			case "reload":
 				sender.sendMessage(cmdFeedbackReloadAttempt);
-				if (instance.loadConfig()) {
+				if (instance.tryReloadConfig(instance.getLogger())) {
 					sender.sendMessage(cmdFeedbackReloadComplete);
 				} else {
 					sender.sendMessage(cmdFeedbackReloadError);
@@ -65,5 +65,7 @@ public class CommandReconnect extends Command implements TabExecutor {
 		}
 		return baseComplete;
 	}
+	
+	
 	
 }

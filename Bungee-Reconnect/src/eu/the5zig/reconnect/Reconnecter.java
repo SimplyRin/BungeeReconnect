@@ -261,7 +261,7 @@ public class Reconnecter {
 			} else {
 				stopSendingUpdates();
 			}
-		}, 200L, TimeUnit.MILLISECONDS);
+		}, 50L, TimeUnit.MILLISECONDS);
 	}
 	
 	private void stopSendingUpdates() {
@@ -276,14 +276,14 @@ public class Reconnecter {
 	 * Sends an Action Bar Message containing the reconnect-text to the player.
 	 */
 	private void sendReconnectActionBar(UserConnection user) {
-		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getReconnectingActionBar().replace("{%dots%}", getDots())));
+		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getReconnectingActionBar().replace("{%dots%}", instance.getDots(startTime))));
 	}
 	
 	/**
 	 * Sends an Action Bar Message containing the connect-text to the player.
 	 */
 	private void sendConnectActionBar(UserConnection user) {
-		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar().replace("{%dots%}", getDots())));
+		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar().replace("{%dots%}", instance.getDots(startTime))));
 	}
 
 	/**
@@ -308,9 +308,9 @@ public class Reconnecter {
 	 */
 	private Title createReconnectTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
-		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", getDots())));
+		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
 		if (!instance.getReconnectingSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", getDots())));
+			title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
 		}
 		// Stay at least as long as the longest possible connect-time can be.
 		title.stay(120);
@@ -327,9 +327,9 @@ public class Reconnecter {
 	 */
 	private Title createConnectingTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
-		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", getDots())));
+		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
 		if (!instance.getConnectingSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", getDots())));
+			title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
 		}
 		title.stay(120);
 		title.fadeIn(0);
@@ -347,27 +347,13 @@ public class Reconnecter {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getFailedTitle()));
 		if (!instance.getFailedSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", getDots())));
+			title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", instance.getDots(startTime))));
 		}		
 		title.stay(120);
 		title.fadeIn(0);
 		title.fadeOut(10);
 
 		return title;
-	}
-
-	/**
-	 * @return a String that is made of dots for the "dots animation".
-	 */
-	private String getDots() {
-		int time = (int) (System.currentTimeMillis()-startTime)/1000;
-		String dots = "";
-
-		for (int i = 0, max = time % 4; i < max; i++) {
-			dots += ".";
-		}
-
-		return dots;
 	}
 
 	/**
