@@ -236,11 +236,6 @@ public class Reconnect extends Plugin implements Listener {
 
 		ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, server);
 		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
-
-		// Cancel the reconnect task (if any exist)
-		/*if (isReconnecting(user.getUniqueId())) {
-			cancelReconnecterFor(user.getUniqueId());
-		}*/
 	}
 
 	/**
