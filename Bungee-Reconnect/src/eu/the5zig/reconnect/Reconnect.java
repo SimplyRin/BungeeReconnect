@@ -10,6 +10,7 @@ import eu.the5zig.reconnect.command.CommandReconnect;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -34,30 +36,28 @@ import java.util.regex.PatternSyntaxException;
 public class Reconnect extends Plugin implements Listener {
 	
 	private String[] dots = new String[] {".", "..", "..."};
-	private int dots_milis = 1000;
-	private String reconnectingTitle = "Reconnecting{%dots%}";
-	private String reconnectingSubtitle = "Please wait{%dots%}";
-	private String reconnectingActionBar = "Reconnecting to server{%dots%}";
-	private String connectingTitle = "Connecting..";
-	private String connectingSubtitle = "Please wait";
-	private String connectingActionBar = "Connecting you to the server..";
-	private String failedTitle = "Reconnecting failed!";
-	private String failedSubtitle = "";
-	private String failedActionBar = "&eYou have been moved to the fallback server!";
-	private int delayBeforeTrying = 60000;
-	private int maxReconnectTries = 20;
-	private int reconnectMillis = 5000;
-	private int reconnectTimeout = 6000;
+	private long dots_nanos = 1_000_000_000;
+	
+	private String reconnectingTitle = null, reconnectingSubtitle = null, reconnectingActionBar = null;
+	
+	private String connectingTitle = null, connectingSubtitle = null, connectingActionBar = null;
+	
+	private String failedTitle = null, failedSubtitle = null, failedActionBar = null, failedKickMessage = null;
+	
+	private int delayBeforeTrying = 0, reconnectTimeout = 0;
+	private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
+	
 	private List<String> ignoredServers = new ArrayList<>();
 	
 	private String shutdownMessage = "Server closed";
 	private Pattern shutdownPattern = null;
-	private boolean stripColor = true;
 	
 	/**
 	 * A HashMap containing all reconnect tasks.
 	 */
 	private HashMap<UUID, Reconnecter> reconnecters = new HashMap<UUID, Reconnecter>();
+	
+	private QueueManager queueManager = new QueueManager(this);
 
 	@Override
 	public void onEnable() {
@@ -68,6 +68,8 @@ public class Reconnect extends Plugin implements Listener {
 		
 		// load Configuration
 		tryReloadConfig(getLogger());
+		
+		
 	}
 	
 	private void registerListener() {
@@ -89,9 +91,11 @@ public class Reconnect extends Plugin implements Listener {
 		// disable listeners
 		unregisterListener();
 		
-		// cancel all reconnectors
+		// cancel all reconnecters
 		synchronized (reconnecters) {
-			reconnecters.keySet().forEach(uid -> cancelReconnecterFor(uid));	
+			(new ArrayList<UUID>(reconnecters.keySet())).forEach(uid -> {
+				cancelReconnecterFor(uid);
+			});;
 		}
 		
 		try {
@@ -118,12 +122,12 @@ public class Reconnect extends Plugin implements Listener {
 			// if config file exists check if it needs updating
 			if (configFile.exists()) {
 				Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-				int internalConfigVersion = internalConfig.getInt("version");
-				if (configuration.getInt("version") < internalConfigVersion) {
+				int configVersion = configuration.getInt("version");
+				if (configuration.getInt("version") < internalConfig.getInt("version")) {
 					log.info("Found an old config version! Replacing with new one...");
 					
 					// rename the old config so that values are not lost
-					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + internalConfigVersion + ".yml");
+					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + configVersion + ".yml");
 					Files.move(configFile, oldConfigFile);
 					
 					log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
@@ -137,69 +141,63 @@ public class Reconnect extends Plugin implements Listener {
 		processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
 	}
 	
-	private void processConfig(Configuration configuration, Logger log) throws Throwable {		
+	private void processConfig(Configuration configuration, Logger log) throws Throwable {
 		// obtain dots animation list from config
 		List<String> dots = configuration.getStringList("dots-animation");
 		
 		// fallback to default dots animation if defined improperly to prevent AOB error
-		if (dots.size() == 0) {
-			throw new AssertionError("\"dots-animation\" was configured improperly. It must have a size of at least 1.");
-		} else {
-			// translate color codes
-			ListIterator<String> it = dots.listIterator();
-			while (it.hasNext()) {
-				it.set(ChatColor.translateAlternateColorCodes('&', it.next()));
-			}		
-			// set array atomically as other threads may still be using it.
-			this.dots = dots.toArray(new String[dots.size()]);
-		}
+		assert(dots.size() > 0) : "\"dots-animation\" was configured improperly. It must have a size of at least 1.";
+		// translate color codes
+		ListIterator<String> it = dots.listIterator();
+		while (it.hasNext()) {
+			it.set(ChatColor.translateAlternateColorCodes('&', it.next()));
+		}		
+		// set array atomically as other threads may still be using it.
+		this.dots = dots.toArray(new String[dots.size()]);
 		
 		// obtain dots animation delay from config
-		dots_milis = configuration.getInt("dots-animation-milis");
-		if (dots_milis < 50) {
-			dots_milis = 50;
+		dots_nanos = configuration.getInt("dots-animation-milis");
+		if (dots_nanos < 50) {
+			dots_nanos = 50;
 			log.warning("\"dots-animation-milis\" was configured improperly. It must be 50 miliseconds or greater; The value has been clamped to 50.");
 		}
+		dots_nanos = TimeUnit.MILLISECONDS.toNanos(dots_nanos);
 		
 		// obtain reconnecting formatting from config
-		reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title", reconnectingTitle));
-		reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.subtitle", reconnectingSubtitle));
-		reconnectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.actionbar", reconnectingActionBar));
+		reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title"));
+		reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.subtitle"));
+		reconnectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.actionbar"));
 		
 		// obtain connecting formatting from config
-		connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title", connectingTitle));
-		connectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.subtitle", connectingSubtitle));
-		connectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.actionbar", connectingActionBar));
+		connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title"));
+		connectingSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.subtitle"));
+		connectingActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.actionbar"));
 		
 		// obtain failed formatting from config
-		failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title", failedTitle));
-		failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle", failedSubtitle));
-		failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar", failedActionBar));
+		failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title"));
+		failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle"));
+		failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar"));
+		failedKickMessage = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.kick-message"));
 		
 		// obtain delays and timeouts from config
-		delayBeforeTrying = configuration.getInt("delay-before-trying", delayBeforeTrying);
-		maxReconnectTries = Math.max(configuration.getInt("max-reconnect-tries", maxReconnectTries), 1);
-		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout", reconnectTimeout), 1000);
-		reconnectMillis = Math.max(configuration.getInt("reconnect-time", reconnectMillis), reconnectTimeout);
+		delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 0);
+		nanosBetweenConnects = TimeUnit.MILLISECONDS.toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
+		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 1000 + Math.max(configuration.getInt("delay-between-reconnects"), 0));
+		maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")), TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
+		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
 		
 		// obtain ignored servers from config
 		ignoredServers = configuration.getStringList("ignored-servers");
 		
 		// obtain shutdown values from config
-		stripColor = configuration.getBoolean("shutdown.strip-color");
-		String shutdownText = configuration.getString("shutdown.text");
+		String shutdownText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.text"));
 		
 		// check if shutdown message was defined
 		if (Strings.isNullOrEmpty(shutdownText)) {
 			// if it was not defined, use no message.
 			shutdownMessage = "";
 			shutdownPattern = null;
-		} else {
-			// check if we're stripping color codes. if so, remove formatting from messages.
-			if (stripColor) {
-				shutdownText = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shutdownText)); // strip all color codes	
-			}
-			
+		} else {			
 			try {
 				// check if regex was not enabled for shutdown message. if so, use the shutdown message.
 				if (!configuration.getBoolean("shutdown.regex")) {
@@ -240,9 +238,9 @@ public class Reconnect extends Plugin implements Listener {
 		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 
 		// Cancel the reconnect task (if any exist)
-		if (isReconnecting(user.getUniqueId())) {
+		/*if (isReconnecting(user.getUniqueId())) {
 			cancelReconnecterFor(user.getUniqueId());
-		}
+		}*/
 	}
 
 	/**
@@ -280,6 +278,7 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param server The Server the User should be connected to.
 	 */
 	public void reconnectIfOnline(UserConnection user, ServerConnection server) {
+		getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
 		synchronized (reconnecters) {
 			if (isUserOnline(user)) {
 				if (!isReconnecting(user.getUniqueId())) {
@@ -358,21 +357,29 @@ public class Reconnect extends Plugin implements Listener {
 	public String getFailedActionBar() {
 		return failedActionBar;
 	}
+	
+	public String getFailedKickMessage() {
+		return failedKickMessage;
+	}
 
 	public int getDelayBeforeTrying() {
 		return delayBeforeTrying;
 	}
-
-	public int getMaxReconnectTries() {
-		return maxReconnectTries;
+	
+	public long getNanosBetweenConnects() {
+		return nanosBetweenConnects;
 	}
-
-	public int getReconnectMillis() {
-		return reconnectMillis;
+	
+	public long getConnctFinalizationNanos() {
+		return connctFinalizationNanos;
 	}
 
 	public int getReconnectTimeout() {
 		return reconnectTimeout;
+	}
+	
+	public long getMaxReconnectNanos() {
+		return maxReconnectNanos;
 	}
 
 	public String getShutdownMessage() {
@@ -388,9 +395,6 @@ public class Reconnect extends Plugin implements Listener {
 	}
 	
 	public boolean isShutdownKick(String message) {
-		if (stripColor) {
-			message = ChatColor.stripColor(message);
-		}
 		if (shutdownPattern != null) {
 			return shutdownPattern.matcher(message).matches();
 		} else {
@@ -406,13 +410,27 @@ public class Reconnect extends Plugin implements Listener {
 		return failedSubtitle;
 	}
 	
-	public String getDots(long time) {
-		return dots[(int) (System.currentTimeMillis()-time)/dots_milis % dots.length];
+	public long getDotNanos() {
+		return dots_nanos;
+	}
+	
+	public String getDots(long startTime) {
+		return dots[(int) ((System.nanoTime()-startTime)/dots_nanos) % dots.length];
 	}
 	
 	public String[] getDots() {
 		// clone the array to prevent non-atomic modification as the array will be accessed by different threads.
 		return dots.clone();
+	}
+	
+	/**
+	 * @param server The server this is bound to
+	 * @param timeout how long will you wait in the queue
+	 * @param timeoutUnit The timeunit for timeout
+	 * @return
+	 */
+	public Holder waitForConnect(ServerInfo server, long timeout, TimeUnit timeoutUnit) {
+		return queueManager.queue(server, timeout, timeoutUnit);
 	}
 
 }

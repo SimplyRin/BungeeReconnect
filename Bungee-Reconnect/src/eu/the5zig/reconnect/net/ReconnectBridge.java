@@ -80,14 +80,13 @@ public class ReconnectBridge extends DownstreamBridge {
 		//Check if kickMessage is a restart message
 		//Handle kick event only if reconnect message does not match, because if it does we're not kicking them.
 		if (instance.isShutdownKick(kickMessage)) {
-			instance.getLogger().info("Attempting reconnect for user: \"" + user.getName() + "\" on server \"" + server.getInfo().getName() + "\"");
 			// As always, we fire a ServerReconnectEvent and give plugins the possibility to cancel server reconnecting.
 			if (instance.fireServerReconnectEvent(user, server)) {
 				// Otherwise, reconnect the User if he is still online.
 				instance.reconnectIfOnline(user, server);
 			} else {
 				// Invoke default behavior if event has been cancelled and disconnect the player.
-				instance.getLogger().info("Disconnecting Player: " + user.getName() + " because plugin cancelled the reconnect event");
+				instance.getLogger().info("Disconnecting \"" + user.getName() + "\" because a plugin cancelled the reconnect event");
 				user.disconnect0(ComponentSerializer.parse(kick.getMessage())); //Send the normal kick message
 			}	
 			server.setObsolete(true);
@@ -98,7 +97,7 @@ public class ReconnectBridge extends DownstreamBridge {
 				user.connectNow(event.getCancelServer(), Reason.KICK_REDIRECT);
 				server.setObsolete(true);
 			}	
-		}
+		}			
 		
 		// Throw Exception so that the Packet won't be send to the Minecraft Client.
 		throw CancelSendSignal.INSTANCE;

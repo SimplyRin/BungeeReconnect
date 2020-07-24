@@ -1,12 +1,9 @@
 package eu.the5zig.reconnect;
 
-import com.google.common.base.Strings;
-
 import eu.the5zig.reconnect.net.BasicChannelInitializer;
 import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
-import io.netty.util.internal.PlatformDependent;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
@@ -20,10 +17,12 @@ import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.netty.PipelineUtils;
 import net.md_5.bungee.protocol.packet.KeepAlive;
 
-import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class Reconnecter {
 
@@ -36,24 +35,27 @@ public class Reconnecter {
 	private final ServerConnection server;
 	private final BungeeServerInfo target;
 	
-	// The time start() was called/class constructed.
-	private long startTime = System.currentTimeMillis();
+	// The time start() was called/object constructed.
+	private long startTime = System.nanoTime();
+	
+	// last time a try was attempted
+	private long lastTryStartTime = 0;
 	
 	// The updates task itself, nonull once started.
 	private ScheduledTask updatesTask = null;
 	// Whether or not to send updates (keepalive/titles etc)
 	private boolean updates = false;
-
-	// How many tries this reconnecter did.
-	private int tries = 0;
 	
 	// If this is cancelled
 	private boolean cancelled = false;
 	// If this is running
 	private boolean running = false;
 	
-	// The current future, this is not null if the last future was a success.	
-	private ChannelFuture currentFuture = null;
+	// The current future. this is not null if the last future was a success.	
+	private ChannelFuture channelFuture = null;
+	
+	// The current holder if any
+	private Holder holder = null;
 	
 	private final Runnable run = new Runnable() {
 		@Override
@@ -61,50 +63,66 @@ public class Reconnecter {
 			if (cancelled) {
 				return;
 			}
-			// Remove pending reconnect because we will retry later on
-			user.getPendingConnects().remove(target);
 			
 			// Only retry to reconnect the user if he is still online and hasn't been moved to another server, do this:
-			if (instance.isUserOnline(user) && Objects.equals(user.getServer(), server)) {
+			if (statusCheck()) {
 				
-				// Ensure the client doesn't timeout
-				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
+				if (TimeUnit.MILLISECONDS.toNanos(instance.getReconnectTimeout()) - (System.nanoTime() - lastTryStartTime) > 0) {
+					retry();
+					return;
+				}
 				
-				// Increment current reconnect tries
-				tries++;
+				lastTryStartTime = System.nanoTime();
 				
-				// if the tries are above the max config'ed tries: kick the player back to fallback or from the proxy if fallback doesn't work disconnect them.
-				if (tries > instance.getMaxReconnectTries()) {
+				// check if timeout has expired
+				if (hasTimedOut()) {
 					// first, Cancel this reconnecter as it is not needed anymore.
 					instance.cancelReconnecterFor(user.getUniqueId());
 					// Proceed with plan B :(
 					failReconnect();
 					
-				} else {// If the reconnect tries are within limits, do this instead:
+				} else {
 					
 					/*
 					 * If the current channel future set in tryReconnect is
-					 * not null, and the channel is inactive/closed close it and retry the reconnect
+					 * not null or the channel is inactive/closed close it and retry the reconnect
 					 * after setting it to null for the next cycle
 					 */
-					if (currentFuture != null) {
-						// If the chanel is active (open and ready/active right now) there is no need to close it or attempt another reconnect
+					if (channelFuture != null) {
+						// If the channel is active (open and ready/active right now) there is no need to close it or attempt another reconnect
 						// Instead wait for it to time out
-						if (currentFuture.channel().isActive()) {
+						if (channelFuture.channel().isActive()) {
 							retry();
 							return;
+						}						
+						
+						try {
+							channelFuture.channel().close();
+							channelFuture.cancel(true);
+						} catch (Exception e) {
+							if (!(e instanceof InterruptedException || e instanceof CancellationException || e instanceof IOException)) {
+								instance.getLogger().log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
+							}
 						}
-						currentFuture.channel().close();
-						currentFuture = null;
+						// nullify the channelFuture to serve as boolean
+						channelFuture = null;
 					}
+					
 					// Attempt a reconnect
 					tryReconnect();
 				}
 			} else { //Otherwise cancel this reconnecter as it ain't needed no more
 				instance.cancelReconnecterFor(user.getUniqueId());
+				if (holder != null) {
+					holder.unlock();	
+				}
 			}
 		}
 	};
+	
+	public boolean statusCheck() {
+		return instance.isUserOnline(user) && (Objects.equals(user.getServer(), server) || user.getDimension() == null);
+	}
 
 	/**
 	 * 
@@ -133,58 +151,61 @@ public class Reconnecter {
 			return;
 		}
 		running = true;
-		startTime = System.currentTimeMillis();
-		// Create runnable if not existing; send tiles and action bar updates every 200 Miliseconds (as well as keepAlive Packets)
+		startTime = System.nanoTime();
+		
+		// Create runnable if not existing; send tiles and action bar updates every 200 Milliseconds (as well as keepAlive Packets)
 		startSendingUpdates();
 		// invoke the "run" runnable after the delay before trying
 		Sched.scheduleAsync(instance, run, instance.getDelayBeforeTrying(), TimeUnit.MILLISECONDS);
 	}
 	
 	private void retry() {
-		// invoke the "run" runnable after the reconnect milis
-		Sched.scheduleAsync(instance, run, instance.getReconnectMillis(), TimeUnit.MILLISECONDS);
+		// invoke the "run" runnable after the reconnect timeout
+		Sched.scheduleAsync(instance, run, 50, TimeUnit.MILLISECONDS);
 	}
 
-	/**
-	 * Tries to reconnect the User to the specified Server. In case that fails, this method will be executed again
-	 * after a short timeout.
-	 */
 	private void tryReconnect() {
 
 		try {
-			// If we are already connecting to a server, cancel the reconnect task.
-			if (user.getPendingConnects().contains(target)) {
-				instance.getLogger().warning("\"" + user.getName() + "\" already connecting to \"" + target.getName() + "\"");
-				return;
-			}
 			
-    		// Establish connection to the server.
-			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
-			ChannelFutureListener listener = new ChannelFutureListener() {
-				@Override
-				public void operationComplete(ChannelFuture future) throws Exception {
-					if (future.isSuccess()) {
-						currentFuture = future;
-					} else {
-						future.channel().close();
-					}
-				}
-			};
+    		// Create channel initializer.
+			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);						
+			
 			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
 			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
-
-			// Windows is bugged, multi homed users will just have to live with random connecting IPs
-			if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows()) {
-				bootstrap.localAddress(((InetSocketAddress) user.getPendingConnection().getListener().getSocketAddress()).getHostString(), 0);
+			
+			// Set the server connection that they are currently on to obsolete.
+			user.getServer().setObsolete(true);
+			
+			// Remove pending reconnect because we are about to reconnect them.
+			user.getPendingConnects().remove(target);
+			
+			// create entry in queue and wait if needed
+			holder = instance.waitForConnect(target, getRemainingTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
+			
+			// connect
+			ChannelFuture future = bootstrap.connect();
+			
+			try {
+				// wait for the future to finish or fail for no longer then reconnect timeout
+				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+				channelFuture = future;
+			} catch (Exception e) {
+				try {
+					future.channel().close();
+					future.cancel(true);	
+				} catch (Exception e2) {
+					instance.getLogger().log(Level.WARNING, "Unexpected exception while closing channel.", e);
+				} finally {
+					channelFuture = null;
+				}
 			}
 			
-			bootstrap.connect().addListener(listener);	
-			// Call next retry to check the isConnected state etc irrelevant of the outcome of the future.
-			retry();
-		} catch (Exception e) { //If an exception occurs on the channel, such as a readTimeoutException, or any other channel exception, retry the reconnect
-			instance.getLogger().warning("exeception in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"");
-			retry();
+		} catch (Exception e) { // if any other exception occurs here log it.
+			instance.getLogger().log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
 		}
+		// Call next retry to check the connection state etc irrelevant of the outcome of the future.
+		retry();
 	}
 	
 	
@@ -217,24 +238,23 @@ public class Reconnecter {
 				user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
 		} else {
 			// Otherwise, disconnect the user with a "Lost Connection"-message.
-			user.disconnect(bungee.getTranslation("lost_connection"));
+			user.disconnect(instance.getFailedKickMessage());
 		}
 	}
 
 	private void startSendingUpdates() {
-		if (updates == true) {//Only allow invocation once
-			return;
+		if (updates == false) {//Only allow invocation once
+			updates = true;
+			startSendingUpdatesAbs();
 		}
-		updates = true;
-		startSendingUpdatesAbs();
 	}
 	
 	private void startSendingUpdatesAbs() {
 		updatesTask = ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
 			if (user.isConnected() && updates && !cancelled) {
-				// Send keep alive packet so user will not disconnect if the server feels like not sending any for whatever reason;
+				// Send keep alive packet so user will not timeout.
 				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
-				if (currentFuture == null) {
+				if (channelFuture == null) {
 					// Send fancy Title
 					if (!instance.getReconnectingTitle().isEmpty()) {
 						createReconnectTitle().send(user);
@@ -271,6 +291,22 @@ public class Reconnecter {
 			updatesTask = null;
 		}
 	}
+	
+	/**
+	 * gets the time left before {@link Reconnect#getMaxReconnectTime()} expires
+	 * @returns The remaining time in nanoseconds
+	 */
+	public long getRemainingTime(TimeUnit unit) {
+		return unit.convert(Math.max(instance.getMaxReconnectNanos() - (lastTryStartTime - startTime), 0), TimeUnit.NANOSECONDS);
+	}
+	
+	/**
+	 * @returns true if {@link Reconnect#getMaxReconnectTime()} has expired
+	 * @returns false otherwise
+	 */
+	public boolean hasTimedOut() {
+		return getRemainingTime(TimeUnit.NANOSECONDS) < 1;
+	}
 
 	/**
 	 * Sends an Action Bar Message containing the reconnect-text to the player.
@@ -291,14 +327,6 @@ public class Reconnecter {
 	 */
 	private void sendFailedActionBar(final UserConnection user) {
 		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getFailedActionBar()));
-
-		// Send an empty action bar message after 5 seconds to make it disappear again.
-		bungee.getScheduler().schedule(instance, new Runnable() {
-			@Override
-			public void run() {
-				user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
-			}
-		}, 5L, TimeUnit.SECONDS);
 	}
 	
 	/**
@@ -309,13 +337,10 @@ public class Reconnecter {
 	private Title createReconnectTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
-		if (!instance.getReconnectingSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		}
-		// Stay at least as long as the longest possible connect-time can be.
-		title.stay(120);
+		title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.stay(10);
 		title.fadeIn(0);
-		title.fadeOut(0);
+		title.fadeOut(10);
 
 		return title;
 	}
@@ -328,10 +353,8 @@ public class Reconnecter {
 	private Title createConnectingTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
-		if (!instance.getConnectingSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		}
-		title.stay(120);
+		title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.stay(10);
 		title.fadeIn(0);
 		title.fadeOut(10);
 
@@ -346,14 +369,27 @@ public class Reconnecter {
 	private Title createFailedTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getFailedTitle()));
-		if (!instance.getFailedSubtitle().isEmpty()) {
-			title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		}		
-		title.stay(120);
+		title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.stay(10);
 		title.fadeIn(0);
 		title.fadeOut(10);
 
 		return title;
+	}
+	
+	/**
+	 * Clears all titles and action bar messages
+	 */
+	public void clearAnimations() {
+		if (instance.isUserOnline(user)) {
+			// clear action bar
+			user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getFailedActionBar()));
+			// clear title
+			Title title = ProxyServer.getInstance().createTitle();
+			title.title(new TextComponent(""));
+			title.subTitle(new TextComponent(""));
+			title.send(user);	
+		}
 	}
 
 	/**
@@ -364,14 +400,10 @@ public class Reconnecter {
 		cancelled = true;
 		running = false;
 		updates = false;
-		if (instance.isUserOnline(user)) {
-			if (!Strings.isNullOrEmpty(instance.getReconnectingTitle()) || !Strings.isNullOrEmpty(instance.getConnectingTitle())) {
-				// For some reason, we have to reset and clear the title, so it completely disappears -> BungeeCord bug?
-				bungee.createTitle().reset().clear().send(user);
-			}
-			if (!Strings.isNullOrEmpty(instance.getConnectingActionBar())) {
-				user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
-			}
+		updatesTask.cancel();
+		clearAnimations();
+		if (holder != null) {
+			holder.unlock();
 		}
 	}
 
