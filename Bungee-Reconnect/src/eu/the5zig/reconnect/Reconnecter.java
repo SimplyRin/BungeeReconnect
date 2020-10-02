@@ -187,11 +187,15 @@ public class Reconnecter {
 			try {
 				// wait for the future to finish or fail for no longer then reconnect timeout
 				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+				if (cancelled) {
+					closeChannel(future);
+					return;
+				}
 				channelFuture = future;
 			} catch (Exception e) {
+				
 				try {
-					future.channel().close();
-					future.cancel(true);	
+					closeChannel(future);
 				} catch (Exception e2) {
 					instance.getLogger().log(Level.WARNING, "Unexpected exception while closing channel.", e);
 				} finally {
@@ -204,6 +208,23 @@ public class Reconnecter {
 		}
 		// Call next retry to check the connection state etc irrelevant of the outcome of the future.
 		retry();
+	}
+	
+	public void closeChannel(ChannelFuture future) throws Exception {
+		if (future != null) {
+			future.channel().close();
+			future.cancel(true);
+		}
+	}
+	
+	public void removeChannel() {
+		try {
+			closeChannel(channelFuture);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			channelFuture = null;
+		}
 	}
 	
 	
@@ -403,6 +424,7 @@ public class Reconnecter {
 		if (holder != null) {
 			holder.unlock();
 		}
+		removeChannel();		
 	}
 	
 	/**
