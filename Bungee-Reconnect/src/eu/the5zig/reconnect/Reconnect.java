@@ -422,7 +422,7 @@ public class Reconnect extends Plugin implements Listener {
 	 * @param server The server this is bound to
 	 * @param timeout how long will you wait in the queue
 	 * @param timeoutUnit The timeunit for timeout
-	 * @return
+	 * @returns holder that can be unlocked when done.
 	 */
 	public Holder waitForConnect(ServerInfo server, long timeout, TimeUnit timeoutUnit) {
 		return queueManager.queue(server, timeout, timeoutUnit);
