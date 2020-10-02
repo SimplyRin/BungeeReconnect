@@ -34,7 +34,7 @@ public class Reconnecter {
 	private final UserConnection user;
 	private final ServerConnection server;
 	private final BungeeServerInfo target;
-	
+
 	// The time start() was called/object constructed.
 	private long startTime = System.nanoTime();
 	
@@ -104,18 +104,16 @@ public class Reconnecter {
 								instance.getLogger().log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
 							}
 						}
-						// nullify the channelFuture to serve as boolean
-						channelFuture = null;
 					}
 					
 					// Attempt a reconnect
 					tryReconnect();
 				}
 			} else { //Otherwise cancel this reconnecter as it ain't needed no more
-				instance.cancelReconnecterFor(user.getUniqueId());
 				if (holder != null) {
 					holder.unlock();	
 				}
+				instance.cancelReconnecterFor(user.getUniqueId());
 			}
 		}
 	};
@@ -169,7 +167,7 @@ public class Reconnecter {
 		try {
 			
     		// Create channel initializer.
-			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);						
+			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
 			
 			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
 			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
@@ -405,6 +403,14 @@ public class Reconnecter {
 		if (holder != null) {
 			holder.unlock();
 		}
+	}
+	
+	/**
+	 * Get the target server for this reconnecter
+	 * @return The target for this reconnecter
+	 */
+	public BungeeServerInfo getTarget() {
+		return target;
 	}
 
 }

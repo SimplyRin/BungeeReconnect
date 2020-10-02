@@ -15,8 +15,8 @@ public class Holder {
 
 	public void unlock() {
 		if (wait != null) {
-			wait.set(false);
 			synchronized (wait) {
+				wait.set(false);
 				wait.notifyAll();
 			}	
 		}

@@ -19,9 +19,7 @@ public class ServerQueue {
 		this.parent = parent;
 	}
 	
-	public synchronized Holder queue(long timeout, TimeUnit unit) {		
-		Holder holder = new Holder(this, wait);
-		
+	public synchronized Holder queue(long timeout, TimeUnit unit) {				
 		try {
 			if (lock.tryLock(timeout, unit)) {
 				long ctime = System.nanoTime();
@@ -39,11 +37,12 @@ public class ServerQueue {
 					e.printStackTrace();
 				}
 				
+				ctime = System.nanoTime();
 				long ftime = parent.instance().getConnctFinalizationNanos();
 				
 				while (wait.get()) {
 					synchronized (wait) {
-						wait.wait(TimeUnit.NANOSECONDS.toMillis(ftime));	
+						wait.wait(TimeUnit.NANOSECONDS.toMillis(Math.abs(ftime - (System.nanoTime() - ctime))));	
 					}
 					if (lastTime + ftime < System.nanoTime()) {
 						wait = new AtomicBoolean(true);
@@ -51,10 +50,10 @@ public class ServerQueue {
 					}
 				}
 				wait.set(true);
-				return holder;
+				return new Holder(this, wait);
 			}
 		} catch (InterruptedException e) {
-			
+			return new Holder(this, new AtomicBoolean());
 		} finally {
 			lock.unlock();
 		}		

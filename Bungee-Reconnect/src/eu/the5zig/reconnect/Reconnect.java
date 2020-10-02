@@ -182,9 +182,9 @@ public class Reconnect extends Plugin implements Listener {
 		// obtain delays and timeouts from config
 		delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 0);
 		nanosBetweenConnects = TimeUnit.MILLISECONDS.toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
-		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 1000 + Math.max(configuration.getInt("delay-between-reconnects"), 0));
 		maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")), TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
 		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
+		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 1000);
 		
 		// obtain ignored servers from config
 		ignoredServers = configuration.getStringList("ignored-servers");
@@ -309,7 +309,7 @@ public class Reconnect extends Plugin implements Listener {
 	void cancelReconnecterFor(UUID uuid) {
 		synchronized (reconnecters) {
 			Reconnecter task = reconnecters.remove(uuid);
-			if (task != null && getProxy().getPlayer(uuid) != null) {
+			if (task != null) {
 				task.cancel();
 			}	
 		}
