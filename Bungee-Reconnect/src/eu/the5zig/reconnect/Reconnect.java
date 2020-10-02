@@ -102,13 +102,13 @@ public class Reconnect extends Plugin implements Listener {
 			loadConfig(log);
 			registerListener();
 			return true;
-		} catch (Throwable t) {
-			log.log(Level.SEVERE, "Error while loading config, plugin functionality disabled until situation is rectified.", t);
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "Error while loading config, plugin functionality disabled until situation is rectified.", e);
 			return false;
 		}
 	}
 	
-	private void loadConfig(Logger log) throws Throwable {
+	private void loadConfig(Logger log) throws Exception {
 		Configuration internalConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(getResourceAsStream("config.yml"));
 		
 		// define config file
@@ -141,7 +141,7 @@ public class Reconnect extends Plugin implements Listener {
 		processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
 	}
 	
-	private void processConfig(Configuration configuration, Logger log) throws Throwable {
+	private void processConfig(Configuration configuration, Logger log) throws Exception {
 		// obtain dots animation list from config
 		List<String> dots = configuration.getStringList("dots-animation");
 		
