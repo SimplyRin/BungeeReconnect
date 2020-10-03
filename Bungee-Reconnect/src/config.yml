@@ -48,27 +48,27 @@ failed-text:
 #   reconnect may actually reconnect them before the server stops accepting new connections. This may cause unstable behavior.
 delay-before-trying: 10000
 
-# The amount of milliseconds the plugin will wait between each connection attempt per player - per server.
+# The amount of milliseconds the plugin will wait between each new connection attempt per player - per server.
 # Depending on server size and hardware having 20+ people reconnect at once can cause issues in the game, plugins and or databases.
 # if your server ends up hanging when people are reconnecting this (can) be an indicator that this value is too low
-#   or that the hardware your server is running on is too weak and or that the plugins/server are badly optimized
+#   or that the hardware your server is running on is too weak and or that the plugins/server are badly optimized.
+#   Also be sure to see connect-finalization-timeout
 # Recommended value is 1000
 delay-between-reconnects: 1000
 
-# How much more time between reconnects should we wait for a connection to finalize.
-# This "can" help in preventing server overloads by waiting for the server to send a dimension change to the client
-# before allowing another reconnect attempt.
-# However you should still set delay-between-reconnects to a reasonable value in-case of plugins sending changes to the client.
-# Note: the effect of this on delay-between-reconnects is: <delay> - <time it took to finalize> = delay between next connect.
-# Notes Note: Assuming default values this means if a connection took 1 second to finalize the next connection delay will be zero.
+# How much MORE time between reconnects should we wait for a connection to finalize.
+# A connection is considered "finalized" once the server sends a dimension to the client.
+# This "can" help in preventing server overloads before allowing another reconnect attempt.
+# However you should still set delay-between-reconnects to a reasonable value in-case of plugins sending
+#   dimension changes to the client and or to issues (see above)
 # Recommended value is 2000
 connect-finalization-timeout: 2000
 
-# The amount of milliseconds the plugin will wait for a reply from the server, until it decides to try again. 
-# Cannot be less then 1000
+# The amount of milliseconds the plugin will wait for the proxy-server connection to establish, before it decides to try again. 
 # Note: This timeout is just the connect timeout. Once the server responds to a reconnect attempt it does nothing.
 #   Meaning this has no effect on connect-finalization-timeout.
 # Any reconnect that times out will be chucked back at the start of the reconnect queue.
+# Cannot be less then 1000
 # Recommended value is 4000
 reconnect-timeout: 4000
 
