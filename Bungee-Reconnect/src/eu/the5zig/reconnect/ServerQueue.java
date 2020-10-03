@@ -13,7 +13,7 @@ public class ServerQueue {
 	
 	private volatile AtomicBoolean wait = new AtomicBoolean(false);
 	
-	private volatile long lastTime = System.nanoTime();	
+	private volatile long lastTime = 0;	
 	
 	public ServerQueue(QueueManager parent) {
 		this.parent = parent;
@@ -25,12 +25,12 @@ public class ServerQueue {
 				long ctime = System.nanoTime();
 				
 				long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 0);
-				lastTime = ctime + sleepTime;
+				//lastTime = ctime + sleepTime;
 				
 				try {
 					Thread.sleep(TimeUnit.NANOSECONDS.toMillis(sleepTime));
 				} catch (InterruptedException e) {
-					lastTime = System.nanoTime();
+					//lastTime = System.nanoTime();
 					e.printStackTrace();
 				}
 				
@@ -52,6 +52,7 @@ public class ServerQueue {
 		} catch (InterruptedException e) {
 			return new Holder(this, new AtomicBoolean());
 		} finally {
+			lastTime = System.nanoTime();
 			lock.unlock();
 		}		
 		return null;
