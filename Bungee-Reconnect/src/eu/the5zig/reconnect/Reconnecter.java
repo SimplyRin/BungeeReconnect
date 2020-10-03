@@ -192,15 +192,8 @@ public class Reconnecter {
 					return;
 				}
 				channelFuture = future;
-			} catch (Exception e) {
-				
-				try {
-					closeChannel(future);
-				} catch (Exception e2) {
-					instance.getLogger().log(Level.WARNING, "Unexpected exception while closing channel.", e);
-				} finally {
-					channelFuture = null;
-				}
+			} catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
+				removeChannel();
 			}
 			
 		} catch (Exception e) { // if any other exception occurs here log it.
@@ -224,6 +217,18 @@ public class Reconnecter {
 			e.printStackTrace();
 		} finally {
 			channelFuture = null;
+		}
+	}
+	
+	public void removeChannelIfIncomplete() {
+		final ChannelFuture future = this.channelFuture;
+		channelFuture = null;
+		if (future != null && future.isCancelled() || !future.isDone()) {
+			try {
+				closeChannel(future);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -424,7 +429,7 @@ public class Reconnecter {
 		if (holder != null) {
 			holder.unlock();
 		}
-		removeChannel();		
+		removeChannelIfIncomplete();		
 	}
 	
 	/**
