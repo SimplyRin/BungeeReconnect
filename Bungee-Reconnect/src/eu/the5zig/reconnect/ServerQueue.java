@@ -25,9 +25,6 @@ public class ServerQueue {
 				long ctime = System.nanoTime();
 				
 				long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 0);
-				
-				// we add sleepTime rather than putting this after Thread#sleep because we 
-				// cannot trust that it will not be interrupted for some reason™
 				lastTime = ctime + sleepTime;
 				
 				try {
