@@ -223,7 +223,7 @@ public class Reconnecter {
 	public void removeChannelIfIncomplete() {
 		final ChannelFuture future = this.channelFuture;
 		channelFuture = null;
-		if (future != null && future.isCancelled() || !future.isDone()) {
+		if (future != null && (future.isCancelled() || !future.isDone())) {
 			try {
 				closeChannel(future);
 			} catch (Exception e) {
