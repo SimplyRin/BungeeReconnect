@@ -95,7 +95,7 @@ public class Reconnect extends Plugin implements Listener {
 		synchronized (reconnecters) {
 			(new ArrayList<UUID>(reconnecters.keySet())).forEach(uid -> {
 				cancelReconnecterFor(uid);
-			});;
+			});
 		}
 		
 		try {
