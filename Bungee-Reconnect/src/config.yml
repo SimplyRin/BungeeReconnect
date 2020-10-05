@@ -15,13 +15,13 @@ dots-animation:
 
 # This is for configuring the timing {%dots%} placeholder animation.
 # 1000 = 1 dot per second
-# Minimum value is title-update-rate
+# Minimum value is update-rate
 dots-animation-millis: 1000
 
 # This value should not be changed unless you are experiencing issues with titles "flickering" on bedrock clients
 # In which case you should change this value to 1 second (1000)
 # Minimum value is 50 Maximum value is 5000
-title-update-rate: 50
+update-rate: 50
 
 # The text that should be displayed, when the plugin is trying to reconnect a player.
 # Leave empty if you don't wish any title or action bar message to be displayed.

@@ -73,7 +73,7 @@ public class Reconnecter {
 		this.server = server;
 		this.target = server.getInfo();
 		this.updateRate = instance.getTitleUpdateRate();
-		this.stayTime = (int) Math.ceil(this.updateRate/1000D) + 1;
+		this.stayTime = (int) Math.ceil(this.updateRate/50D) + 20;
 	}
 	
 	private final Runnable run = new Runnable() {
@@ -273,38 +273,43 @@ public class Reconnecter {
 	}
 	
 	private void startSendingUpdatesAbs() {
+		update();
 		updatesTask = ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
-			if (user.isConnected() && updates && !cancelled) {
-				// Send keep alive packet so user will not timeout.
-				user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
-				if (channelFuture == null) {
-					// Send fancy Title
-					if (!instance.getReconnectingTitle().isEmpty()) {
-						createReconnectTitle().send(user);
-					}
-
-					// Send fancy Action Bar Message
-					if (!instance.getReconnectingActionBar().isEmpty()) {
-						sendReconnectActionBar(user);
-					}
-		
-				} else {					
-					// Send fancy Title
-					if (!instance.getConnectingTitle().isEmpty()) {
-						createConnectingTitle().send(user);
-					}
-
-					// Send fancy Action Bar Message
-					if (!instance.getConnectingActionBar().isEmpty()) {
-						sendConnectActionBar(user);
-					}
-				}
-				//Loop
-				startSendingUpdatesAbs();
-			} else {
-				stopSendingUpdates();
-			}
+			update();
 		}, updateRate, TimeUnit.MILLISECONDS);
+	}
+	
+	private void update() {
+		if (user.isConnected() && updates && !cancelled) {
+			// Send keep alive packet so user will not timeout.
+			user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
+			if (channelFuture == null) {
+				// Send fancy Title
+				if (!instance.getReconnectingTitle().isEmpty()) {
+					createReconnectTitle().send(user);
+				}
+
+				// Send fancy Action Bar Message
+				if (!instance.getReconnectingActionBar().isEmpty()) {
+					sendReconnectActionBar(user);
+				}
+	
+			} else {					
+				// Send fancy Title
+				if (!instance.getConnectingTitle().isEmpty()) {
+					createConnectingTitle().send(user);
+				}
+
+				// Send fancy Action Bar Message
+				if (!instance.getConnectingActionBar().isEmpty()) {
+					sendConnectActionBar(user);
+				}
+			}
+			//Loop
+			startSendingUpdatesAbs();
+		} else {
+			stopSendingUpdates();
+		}
 	}
 	
 	private void stopSendingUpdates() {
