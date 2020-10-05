@@ -490,7 +490,7 @@ public class Reconnecter {
 		
 		instance.remove(this);
 		
-		updatesTask.cancel();
+		stopSendingUpdates();
 		clearAnimations();
 		dropHolder();
 		
