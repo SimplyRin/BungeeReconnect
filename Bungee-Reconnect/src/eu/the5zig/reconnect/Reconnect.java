@@ -121,16 +121,16 @@ public class Reconnect extends Plugin implements Listener {
 			
 			// if config file exists check if it needs updating
 			if (configFile.exists()) {
-				Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-				int configVersion = configuration.getInt("version");
-				if (configuration.getInt("version") < internalConfig.getInt("version")) {
+				Configuration config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+				int configVersion = config.getInt("version");
+				if (config.getInt("version") < internalConfig.getInt("version")) {
 					log.info("Found an old config version! Replacing with new one...");
 					
 					// rename the old config so that values are not lost
-					File oldConfigFile = new File(getDataFolder(), "config.old.ver" + configVersion + ".yml");
+					File oldConfigFile = new File(getDataFolder(), "config.old.ver." + configVersion + ".yml");
 					Files.move(configFile, oldConfigFile);
-					
 					log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
+					
 					saveDefaultConfig(configFile);
 				}
 			} else {
