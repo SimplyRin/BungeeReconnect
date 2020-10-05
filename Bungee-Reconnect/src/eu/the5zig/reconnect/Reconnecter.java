@@ -209,7 +209,6 @@ public class Reconnecter {
 	
 	public void closeChannel(ChannelFuture future) throws Exception {
 		if (future != null) {
-			System.out.println("REMOVED CHANNEL FOR: " + user.getName());
 			future.channel().close();
 			future.cancel(true);
 		}
