@@ -268,12 +268,11 @@ public class Reconnecter {
 	private void startSendingUpdates() {
 		if (updates == false) {//Only allow invocation once
 			updates = true;
-			startSendingUpdatesAbs();
+			update();
 		}
 	}
 	
-	private void startSendingUpdatesAbs() {
-		update();
+	private void queueUpdate() {
 		updatesTask = ProxyServer.getInstance().getScheduler().schedule(instance, () -> {
 			update();
 		}, updateRate, TimeUnit.MILLISECONDS);
@@ -306,7 +305,7 @@ public class Reconnecter {
 				}
 			}
 			//Loop
-			startSendingUpdatesAbs();
+			queueUpdate();
 		} else {
 			stopSendingUpdates();
 		}
