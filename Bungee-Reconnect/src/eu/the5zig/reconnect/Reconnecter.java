@@ -45,6 +45,8 @@ public class Reconnecter {
 	private ScheduledTask updatesTask = null;
 	// Whether or not to send updates (keepalive/titles etc)
 	private boolean updates = false;
+	private final long updateRate;
+	private final int stayTime;
 	
 	// If this is cancelled
 	private boolean cancelled = false;
@@ -56,6 +58,23 @@ public class Reconnecter {
 	
 	// The current holder if any
 	private Holder holder = null;
+	
+	/**
+	 * 
+	 * @param instance The instance of reconnect
+	 * @param bungee The proxyserver
+	 * @param user The user to reconnect
+	 * @param server The server connection the user will try to reconnect to
+	 */
+	public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
+		this.instance = instance;
+		this.bungee = bungee;
+		this.user = user;
+		this.server = server;
+		this.target = server.getInfo();
+		this.updateRate = instance.getTitleUpdateRate();
+		this.stayTime = (int) Math.ceil(this.updateRate/1000D) + 1;
+	}
 	
 	private final Runnable run = new Runnable() {
 		@Override
@@ -120,21 +139,6 @@ public class Reconnecter {
 	
 	public boolean statusCheck() {
 		return instance.isUserOnline(user) && (Objects.equals(user.getServer(), server) || user.getDimension() == null);
-	}
-
-	/**
-	 * 
-	 * @param instance The instance of reconnect
-	 * @param bungee The proxyserver
-	 * @param user The user to reconnect
-	 * @param server The server connection the user will try to reconnect to
-	 */
-	public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
-		this.instance = instance;
-		this.bungee = bungee;
-		this.user = user;
-		this.server = server;
-		this.target = server.getInfo();
 	}
 	
 	/**
@@ -300,7 +304,7 @@ public class Reconnecter {
 			} else {
 				stopSendingUpdates();
 			}
-		}, 50L, TimeUnit.MILLISECONDS);
+		}, updateRate, TimeUnit.MILLISECONDS);
 	}
 	
 	private void stopSendingUpdates() {
@@ -357,9 +361,9 @@ public class Reconnecter {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
 		title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		title.stay(10);
+		title.stay(stayTime);
 		title.fadeIn(0);
-		title.fadeOut(10);
+		title.fadeOut(1);
 
 		return title;
 	}
@@ -373,9 +377,9 @@ public class Reconnecter {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
 		title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		title.stay(10);
+		title.stay(stayTime);
 		title.fadeIn(0);
-		title.fadeOut(10);
+		title.fadeOut(1);
 
 		return title;
 	}
@@ -389,9 +393,9 @@ public class Reconnecter {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getFailedTitle()));
 		title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", instance.getDots(startTime))));
-		title.stay(10);
+		title.stay(stayTime);
 		title.fadeIn(0);
-		title.fadeOut(10);
+		title.fadeOut(1);
 
 		return title;
 	}

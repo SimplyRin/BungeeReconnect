@@ -44,7 +44,7 @@ public class Reconnect extends Plugin implements Listener {
 	
 	private String failedTitle = null, failedSubtitle = null, failedActionBar = null, failedKickMessage = null;
 	
-	private int delayBeforeTrying = 0, reconnectTimeout = 0;
+	private int delayBeforeTrying = 0, reconnectTimeout = 0,  titleUpdateRate = 50;
 	private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
 	
 	private List<String> ignoredServers = new ArrayList<>();
@@ -151,17 +151,7 @@ public class Reconnect extends Plugin implements Listener {
 		ListIterator<String> it = dots.listIterator();
 		while (it.hasNext()) {
 			it.set(ChatColor.translateAlternateColorCodes('&', it.next()));
-		}		
-		// set array atomically as other threads may still be using it.
-		this.dots = dots.toArray(new String[dots.size()]);
-		
-		// obtain dots animation delay from config
-		dots_nanos = configuration.getInt("dots-animation-milis");
-		if (dots_nanos < 50) {
-			dots_nanos = 50;
-			log.warning("\"dots-animation-milis\" was configured improperly. It must be 50 miliseconds or greater; The value has been clamped to 50.");
 		}
-		dots_nanos = TimeUnit.MILLISECONDS.toNanos(dots_nanos);
 		
 		// obtain reconnecting formatting from config
 		reconnectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("reconnecting-text.title"));
@@ -180,11 +170,24 @@ public class Reconnect extends Plugin implements Listener {
 		failedKickMessage = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.kick-message"));
 		
 		// obtain delays and timeouts from config
+		titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
 		delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 0);
 		nanosBetweenConnects = TimeUnit.MILLISECONDS.toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
 		maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")), TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
 		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
 		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 1000);
+		
+		// set array atomically as other threads may still be using it.
+		this.dots = dots.toArray(new String[dots.size()]);
+		
+		// obtain dots animation delay from config
+		// millis are converted to nanos later
+		dots_nanos = configuration.getInt("dots-animation-millis");
+		if (dots_nanos < titleUpdateRate) {
+			dots_nanos = titleUpdateRate;
+			log.warning("\"dots-animation-millis\" was configured improperly. It must be " + titleUpdateRate + " milliseconds or greater; The value has been clamped to \"title-update-rate\".");
+		}
+		dots_nanos = TimeUnit.MILLISECONDS.toNanos(dots_nanos);
 		
 		// obtain ignored servers from config
 		ignoredServers = configuration.getStringList("ignored-servers");
@@ -355,6 +358,10 @@ public class Reconnect extends Plugin implements Listener {
 	
 	public String getFailedKickMessage() {
 		return failedKickMessage;
+	}
+	
+	public int getTitleUpdateRate() {
+		return titleUpdateRate;
 	}
 
 	public int getDelayBeforeTrying() {
