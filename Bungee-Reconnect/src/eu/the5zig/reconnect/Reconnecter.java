@@ -209,6 +209,7 @@ public class Reconnecter {
 	
 	public void closeChannel(ChannelFuture future) throws Exception {
 		if (future != null) {
+			System.out.println("REMOVED CHANNEL FOR: " + user.getName());
 			future.channel().close();
 			future.cancel(true);
 		}
@@ -410,7 +411,7 @@ public class Reconnecter {
 	public void clearAnimations() {
 		if (instance.isUserOnline(user)) {
 			// clear action bar
-			user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getFailedActionBar()));
+			user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(""));
 			// clear title
 			Title title = ProxyServer.getInstance().createTitle();
 			title.title(new TextComponent(""));
