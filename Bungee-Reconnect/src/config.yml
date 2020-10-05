@@ -4,7 +4,7 @@
 # The current version of this configuration. Do NOT change this value!
 # If the plugin uses a more recent config version, this config gets replaced by it
 #   while a backup of the old config will be kept as "config.old.ver.<OLD VERSION>.yml".
-version: 11
+version: 12
 
 # This is for configuring the content of the {%dots%} placeholder animation.
 # You may use color codes
@@ -70,12 +70,11 @@ delay-between-reconnects: 1000
 connect-finalization-timeout: 2000
 
 # The amount of milliseconds the plugin will wait for the proxy-server connection to establish, before it decides to try again. 
-# Note: This timeout is just the connect timeout. Once the server responds to a reconnect attempt it does nothing.
-#   Meaning this has no effect on connect-finalization-timeout.
+# Note: If a connection is not finalized within this timeframe another attempt will be made.
 # Any reconnect that times out will be chucked back at the start of the reconnect queue.
-# Cannot be less then 1000
-# Recommended value is 4000
-reconnect-timeout: 4000
+# Cannot be less then 2000 + connect-finalization-timeout
+# Recommended value is 6000
+reconnect-timeout: 6000
 
 # The maximum amount of time the plugin will wait to connect everyone.
 # If this time limit is reached the plugin will first attempt to connect them to your fallback-server otherwise kicking them.

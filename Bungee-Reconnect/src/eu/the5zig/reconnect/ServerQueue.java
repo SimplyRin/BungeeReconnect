@@ -24,7 +24,7 @@ public class ServerQueue {
 			if (lock.tryLock(timeout, unit)) {
 				long ctime = System.nanoTime();
 				
-				long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 0);
+				long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 1);
 				//lastTime = ctime + sleepTime;
 				
 				try {
@@ -39,7 +39,7 @@ public class ServerQueue {
 				
 				while (wait.get()) {
 					synchronized (wait) {
-						wait.wait(TimeUnit.NANOSECONDS.toMillis(Math.abs(ftime - (System.nanoTime() - ctime))));	
+						wait.wait(Math.max(TimeUnit.NANOSECONDS.toMillis(ftime - (System.nanoTime() - ctime)), 1));	
 					}
 					if (lastTime + ftime < System.nanoTime()) {
 						wait = new AtomicBoolean(true);

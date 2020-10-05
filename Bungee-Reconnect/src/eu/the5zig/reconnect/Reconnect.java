@@ -9,9 +9,12 @@ import eu.the5zig.reconnect.api.ServerReconnectEvent;
 import eu.the5zig.reconnect.command.CommandReconnect;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
+import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -24,9 +27,11 @@ import net.md_5.bungee.netty.HandlerBoss;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,6 +39,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 public class Reconnect extends Plugin implements Listener {
+	
+	private final ProxyServer bungee = ProxyServer.getInstance();
 	
 	private String[] dots = new String[] {".", "..", "..."};
 	private long dots_nanos = 1_000_000_000;
@@ -175,7 +182,7 @@ public class Reconnect extends Plugin implements Listener {
 		nanosBetweenConnects = TimeUnit.MILLISECONDS.toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
 		maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")), TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
 		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
-		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 1000);
+		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 2000 + configuration.getInt("connect-finalization-timeout"));
 		
 		// set array atomically as other threads may still be using it.
 		this.dots = dots.toArray(new String[dots.size()]);
@@ -225,7 +232,7 @@ public class Reconnect extends Plugin implements Listener {
 		}
 	}
 
-	@EventHandler
+	@EventHandler()
 	public void onServerSwitch(ServerSwitchEvent event) {
 		// We need to override the Downstream class of each user so that we can override the disconnect methods of it.
 		// ServerSwitchEvent is called just right after the Downstream Bridge has been initialized, so we simply can
@@ -241,21 +248,20 @@ public class Reconnect extends Plugin implements Listener {
 		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 	}
 
+	public boolean isIgnoredServer(ServerInfo server) {
+		return ignoredServers.contains(server.getName());
+	}
+	
 	/**
-	 * Checks whether the current server should be ignored and fires a ServerReconnectEvent afterwards.
+	 * fires a ServerReconnectEvent.
 	 *
 	 * @param user   The User that should be reconnected.
 	 * @param server The Server the User should be reconnected to.
 	 * @return true, if the ignore list does not contain the server and the event hasn't been canceled.
 	 */
 	public boolean fireServerReconnectEvent(UserConnection user, ServerConnection server) {
-		// check if the server is supposed to be ignored for reconnects
-		if (ignoredServers.contains(server.getInfo().getName())) {
-			return false;
-		} else { // otherwise fire off a reconnect event and check if it was cancelled
-			ServerReconnectEvent event = getProxy().getPluginManager().callEvent(new ServerReconnectEvent(user, server.getInfo()));
-			return !event.isCancelled();	
-		}
+		ServerReconnectEvent event = getProxy().getPluginManager().callEvent(new ServerReconnectEvent(user, server.getInfo()));
+		return !event.isCancelled();	
 	}
 
 	/**
@@ -316,6 +322,37 @@ public class Reconnect extends Plugin implements Listener {
 				task.cancel();
 			}	
 		}
+	}
+	
+	// internal use only, does not cancel only removes.
+	void remove(Reconnecter reconnecter) {
+		reconnecters.remove(reconnecter.getUUID(), reconnecter);
+	}
+	
+	/**
+	 * Causes the user to fall back on the provided iterator of servers
+	 * @param user The server to cause to fallback
+	 * @param it the servers to fall back on
+	 * @param onFailed What to do if all servers fail
+	 */
+	public void fallback(UserConnection user, Iterator<ServerInfo> it, Callable<Object> onFailed) {
+		if (!it.hasNext()) {
+			try {
+				onFailed.call();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return;
+		}
+		user.connect(it.next(), new Callback<Boolean>() {
+			@Override
+			public void done(Boolean done, Throwable t) {
+				if (!done) {
+					fallback(user, it, onFailed);
+				}
+			}
+		}, Reason.SERVER_DOWN_REDIRECT);;
+		user.sendMessage(bungee.getTranslation("server_went_down"));
 	}
 
 	/**
@@ -423,6 +460,12 @@ public class Reconnect extends Plugin implements Listener {
 	public String[] getDots() {
 		// clone the array to prevent non-atomic modification as the array will be accessed by different threads.
 		return dots.clone();
+	}
+	
+	public List<ServerInfo> getFallbackServersFor(UserConnection user) {
+		List<ServerInfo> servers = new ArrayList<ServerInfo>();
+		user.getPendingConnection().getListener().getServerPriority().forEach(s -> servers.add(bungee.getServerInfo(s)));
+		return servers;
 	}
 	
 	/**
