@@ -69,14 +69,12 @@ public class Reconnect extends Plugin implements Listener {
 	@Override
 	public void onEnable() {
 		getLogger().setLevel(Level.FINE);
-
-		// setup Command
-		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
 		
 		// load Configuration
 		tryReloadConfig(getLogger());
 		
-		
+		// setup Command
+		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
 	}
 	
 	private void registerListener() {
@@ -319,6 +317,7 @@ public class Reconnect extends Plugin implements Listener {
 		synchronized (reconnecters) {
 			Reconnecter task = reconnecters.remove(uuid);
 			if (task != null) {
+				task.failReconnect();
 				task.cancel();
 			}	
 		}
