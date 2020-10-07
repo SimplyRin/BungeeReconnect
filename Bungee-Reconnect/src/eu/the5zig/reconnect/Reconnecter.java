@@ -281,9 +281,9 @@ public class Reconnecter {
 		cancel();
 		
 		List<ServerInfo> fallbacks = instance.getFallbackServersFor(user);
+		// remove current server from fallback servers iterator
 		fallbacks.remove(target);
 		
-		// If the fallback-server is not the same server we tried to reconnect to, send the user to that one instead.
 		server.setObsolete(true);
 		
 		// Send fancy title if it's enabled in config, otherwise reset the connecting title.
