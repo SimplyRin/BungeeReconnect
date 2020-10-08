@@ -46,7 +46,8 @@ public class ServerQueue {
 						break;
 					}
 				}
-				wait.set(true);
+				
+				wait = new AtomicBoolean(true);
 				return new Holder(this, wait);
 			}
 		} catch (InterruptedException e) {
