@@ -1,9 +1,21 @@
 package eu.the5zig.reconnect;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+
 import eu.the5zig.reconnect.net.BasicChannelInitializer;
 import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
@@ -15,15 +27,6 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.netty.PipelineUtils;
 import net.md_5.bungee.protocol.packet.KeepAlive;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 public class Reconnecter {
 
@@ -126,11 +129,19 @@ public class Reconnecter {
 	};
 	
 	/**
-	 * Checks if the user is reconnected or has moved to a different server/went offline
-	 * @return true if the user is online has not switched servers and is not reconnected yet
+	 * Used internally to determine if reconnect should continue
+	 * @return true if we should continue
 	 */
 	public boolean statusCheck() {
-		return isOnline() && (isSameServer() || user.getDimension() == null);
+		return isOnline() && (isSameServer() || (isSameInfo() && user.getDimension() == null));
+	}
+	
+	/**
+	 * Checks of the user is connected to the same server info as the one they lost connection to.
+	 * @return if the user is on the same server info
+	 */
+	public boolean isSameInfo() {
+		return user.getServer().getInfo().equals(server.getInfo());
 	}
 	
 	/**
