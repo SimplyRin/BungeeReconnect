@@ -1,6 +1,7 @@
 package eu.the5zig.reconnect;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -16,14 +17,18 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.util.internal.PlatformDependent;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.ServerConnectRequest;
 import net.md_5.bungee.api.Title;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.event.ServerConnectEvent;
+import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.netty.PipelineUtils;
 import net.md_5.bungee.protocol.packet.KeepAlive;
@@ -108,15 +113,8 @@ public class Reconnecter {
 							return;	
 						}
 						
-						try {
-							dropHolder();
-							future.cancel(true);
-							future.channel().close();
-						} catch (Exception e) {
-							if (!(e instanceof InterruptedException || e instanceof IOException)) {
-								instance.getLogger().log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
-							}
-						}
+						dropHolder();
+						tryCloseChannel(future);
 					}
 					
 					// Attempt a reconnect
@@ -141,7 +139,8 @@ public class Reconnecter {
 	 * @return if the user is on the same server info
 	 */
 	public boolean isSameInfo() {
-		return user.getServer().getInfo().equals(server.getInfo());
+		ServerConnection c = user.getServer();
+		return c == null || target.equals(user.getServer().getInfo());
 	}
 	
 	/**
@@ -192,21 +191,10 @@ public class Reconnecter {
 	/**
 	 * Abstracted logic that is called every time a new connection attempt should be made
 	 */
+	@SuppressWarnings("deprecation")
 	private void tryReconnect() {
 
 		try {
-			
-    		// Create channel initializer.
-			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
-			
-			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
-			
-			// Set the server connection that they are currently on to obsolete.
-			user.getServer().setObsolete(true);
-			
-			// Remove pending reconnect because we are about to reconnect them.
-			user.getPendingConnects().remove(target);
 			
 			// create entry in queue and wait if needed
 			holder = instance.waitForConnect(target, getRemainingTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
@@ -216,20 +204,65 @@ public class Reconnecter {
 				return;
 			}
 			
+			// Set the server connection that they are currently on to obsolete.
+			server.setObsolete(true);
+			
+			// Remove pending reconnect because we are about to reconnect them.
+			user.getPendingConnects().remove(target);
+			
+			ServerConnectEvent event = new ServerConnectEvent(user, target, Reason.SERVER_DOWN_REDIRECT, ServerConnectRequest.builder()
+					.target(target)
+					.reason(Reason.SERVER_DOWN_REDIRECT)
+					.retry(false)
+					.connectTimeout(instance.getReconnectTimeout())
+					.build()
+					);
+			bungee.getPluginManager().callEvent(event);
+			
+			if (event.isCancelled()) {
+				instance.cancelReconnecterFor(getUUID());
+				instance.getLogger().info("Cannot reconnect \"" + user.getName() + "\" because a plugin cancelled the connect event");
+				return;
+			}
+			
+			// Do this again in-case a plugin fucked with us.
+			// Set the server connection that they are currently on to obsolete.
+			server.setObsolete(true);
+			
+			// Remove pending reconnect because we are about to reconnect them.
+			user.getPendingConnects().remove(target);
+			
+    		// Create channel initializer.
+			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
+			
+			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
+			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
+			
+			user.getPendingConnects().add(target);
+			
+            if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows() && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress) {
+                bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
+            }
+			
+            // clear plugin messages
+            user.getPendingConnection().getRelayMessages().clear();
+            
 			// connect
 			ChannelFuture future = bootstrap.connect();
 			
 			try {
 				// wait for the future to finish or fail for no longer then reconnect timeout
 				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+				tryCloseChannel(channelFuture);
 				channelFuture = future;
 				lastFutureTime = System.nanoTime();
 			} catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
-				closeChannel(future);
 				dropHolder();
+				closeChannel(future);
 			}
 			
 		} catch (Exception e) { // if any other exception occurs here log it.
+			dropHolder();
 			instance.getLogger().log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
 		}
 		// Call next retry to check the connection state etc irrelevant of the outcome of the future.
@@ -244,6 +277,20 @@ public class Reconnecter {
 		if (h != null) {
 			h.unlock();
 			holder = null;
+		}
+	}
+	
+	/**
+	 * Closes a channel while catching common exceptions.
+	 * @param future
+	 */
+	public void tryCloseChannel(ChannelFuture future) {
+		try {
+			closeChannel(future);
+		} catch (Exception e) {
+			if (!(e instanceof InterruptedException || e instanceof IOException)) {
+				instance.getLogger().log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
+			}
 		}
 	}
 	
