@@ -1,30 +1,10 @@
 package eu.the5zig.reconnect;
 
-import com.google.common.base.Strings;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
-
-import eu.the5zig.reconnect.net.ReconnectBridge;
-import eu.the5zig.reconnect.api.ServerReconnectEvent;
-import eu.the5zig.reconnect.command.CommandReconnect;
-import net.md_5.bungee.ServerConnection;
-import net.md_5.bungee.UserConnection;
-import net.md_5.bungee.api.Callback;
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.event.ServerSwitchEvent;
-import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
-import net.md_5.bungee.api.plugin.Listener;
-import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.config.Configuration;
-import net.md_5.bungee.config.ConfigurationProvider;
-import net.md_5.bungee.config.YamlConfiguration;
-import net.md_5.bungee.event.EventHandler;
-import net.md_5.bungee.netty.ChannelWrapper;
-import net.md_5.bungee.netty.HandlerBoss;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,6 +17,30 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
+import com.google.common.base.Strings;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
+
+import eu.the5zig.reconnect.api.ServerReconnectEvent;
+import eu.the5zig.reconnect.command.CommandReconnect;
+import eu.the5zig.reconnect.net.ReconnectBridge;
+import net.md_5.bungee.ServerConnection;
+import net.md_5.bungee.UserConnection;
+import net.md_5.bungee.api.Callback;
+import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
+import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.plugin.Listener;
+import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.config.Configuration;
+import net.md_5.bungee.config.ConfigurationProvider;
+import net.md_5.bungee.config.YamlConfiguration;
+import net.md_5.bungee.event.EventHandler;
+import net.md_5.bungee.netty.ChannelWrapper;
+import net.md_5.bungee.netty.HandlerBoss;
 
 public class Reconnect extends Plugin implements Listener {
 	
@@ -325,7 +329,9 @@ public class Reconnect extends Plugin implements Listener {
 	
 	// internal use only, does not cancel only removes.
 	void remove(Reconnecter reconnecter) {
-		reconnecters.remove(reconnecter.getUUID(), reconnecter);
+		synchronized (reconnecters) {
+			reconnecters.remove(reconnecter.getUUID(), reconnecter);
+		}
 	}
 	
 	/**
@@ -350,7 +356,7 @@ public class Reconnect extends Plugin implements Listener {
 					fallback(user, it, onFailed);
 				}
 			}
-		}, Reason.SERVER_DOWN_REDIRECT);;
+		}, Reason.SERVER_DOWN_REDIRECT);
 		user.sendMessage(bungee.getTranslation("server_went_down"));
 	}
 
