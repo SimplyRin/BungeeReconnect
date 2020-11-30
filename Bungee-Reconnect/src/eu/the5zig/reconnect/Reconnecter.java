@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import eu.the5zig.reconnect.net.BasicChannelInitializer;
+import eu.the5zig.reconnect.util.MyPipelineUtils;
 import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -30,7 +31,6 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
-import net.md_5.bungee.netty.PipelineUtils;
 import net.md_5.bungee.protocol.packet.KeepAlive;
 
 public class Reconnecter {
@@ -236,7 +236,7 @@ public class Reconnecter {
 			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
 			
 			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-			Bootstrap bootstrap = new Bootstrap().channel(PipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
+			Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
 			
 			user.getPendingConnects().add(target);
 			
