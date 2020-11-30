@@ -31,6 +31,7 @@ import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
@@ -39,7 +40,6 @@ import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
-import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.netty.HandlerBoss;
 
 public class Reconnect extends Plugin implements Listener {
@@ -75,7 +75,12 @@ public class Reconnect extends Plugin implements Listener {
 		getLogger().setLevel(Level.FINE);
 		
 		// load Configuration
-		tryReloadConfig(getLogger());
+		if (tryReloadConfig(getLogger())) {
+			// set bridges
+			for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
+				setBridgeOf((UserConnection) proxiedPlayer);
+			}
+		}
 		
 		// setup Command
 		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
@@ -241,13 +246,14 @@ public class Reconnect extends Plugin implements Listener {
 		// instantiate here our own implementation of the DownstreamBridge
 		//
 		// @see net.md_5.bungee.ServerConnector#L249
+		setBridgeOf((UserConnection) event.getPlayer());
+	}
+	
+	public void setBridgeOf(UserConnection user) {
+		ServerConnection con = user.getServer();
 
-		UserConnection user = (UserConnection) event.getPlayer();
-		ServerConnection server = user.getServer();
-		ChannelWrapper ch = server.getCh();
-
-		ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, server);
-		ch.getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
+		ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, con);
+		con.getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 	}
 
 	public boolean isIgnoredServer(ServerInfo server) {
