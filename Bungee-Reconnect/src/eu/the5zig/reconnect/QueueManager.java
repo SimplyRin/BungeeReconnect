@@ -14,7 +14,7 @@ public class QueueManager {
 	 * A WeakHashMap containing all connection queued servers
 	 * We use a weak hash map in the event that a plugin meddles with the current servers at runtime
 	 */
-	private Map<ServerInfo, ServerQueue> serverQueueMap = new WeakHashMap<ServerInfo, ServerQueue>();
+	private final Map<ServerInfo, ServerQueue> serverQueueMap = new WeakHashMap<ServerInfo, ServerQueue>();
 	
 	protected QueueManager(Reconnect instance) {
 		this.instance = instance;
