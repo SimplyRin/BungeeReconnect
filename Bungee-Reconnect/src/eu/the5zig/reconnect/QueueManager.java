@@ -1,7 +1,7 @@
 package eu.the5zig.reconnect;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 
 import net.md_5.bungee.api.config.ServerInfo;
@@ -11,9 +11,10 @@ public class QueueManager {
 	private final Reconnect instance;
 	
 	/**
-	 * A HashMap containing all connection queued servers
+	 * A WeakHashMap containing all connection queued servers
+	 * We use a weak hash map in the event that a plugin meddles with the current servers at runtime
 	 */
-	private Map<ServerInfo, ServerQueue> serverQueueMap = new HashMap<ServerInfo, ServerQueue>();
+	private Map<ServerInfo, ServerQueue> serverQueueMap = new WeakHashMap<ServerInfo, ServerQueue>();
 	
 	protected QueueManager(Reconnect instance) {
 		this.instance = instance;
