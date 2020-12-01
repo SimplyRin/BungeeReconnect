@@ -247,6 +247,17 @@ public class Reconnect extends Plugin implements Listener {
 		//
 		// @see net.md_5.bungee.ServerConnector#L249
 		setBridgeOf((UserConnection) event.getPlayer());
+		
+		// cancel reconnecter instantly if the users switches servers
+		Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
+		if (re != null && !re.isSameInfo()) {
+			re.cancel(true);
+			final ServerConnection currentServer = re.getUser().getServer();
+			getLogger().info("Cancelled reconnect for \"" + re.getUser().getName()
+					+ "\" on \"" + re.getServer().getInfo().getName() 
+					+ "\" as they have switched servers to \"" 
+					+ (currentServer == null ? "null?" : currentServer.getInfo().getName() + "\""));
+		}
 	}
 	
 	public void setBridgeOf(UserConnection user) {
@@ -299,6 +310,17 @@ public class Reconnect extends Plugin implements Listener {
 			} else {
 				cancelReconnecterFor(user.getUniqueId());
 			}	
+		}
+	}
+	
+	/**
+	 * Gets current reconnecter for player or null if none exist
+	 * @param uid UUID of the player
+	 * @return the reconnecter or null of there is none
+	 */
+	public Reconnecter getReconnecterFor(UUID uid) {
+		synchronized (reconnecters) {
+			return reconnecters.get(uid);
 		}
 	}
 

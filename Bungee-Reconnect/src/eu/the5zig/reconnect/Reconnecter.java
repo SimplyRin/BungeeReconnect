@@ -47,26 +47,28 @@ public class Reconnecter {
 	// The time start() was called/object constructed.
 	private long startTime = System.nanoTime();
 	
-	// last time a try was attempted
-	private long lastFutureTime = 0;
-	
-	// The updates task itself, nonull once started.
-	private ScheduledTask updatesTask = null;
-	// Whether or not to send updates (keepalive/titles etc)
-	private boolean updates = false;
 	private final long updateRate;
 	private final int stayTime;
 	
+	// The updates task itself, nonull once started.
+	private volatile ScheduledTask updatesTask = null;
+	// Whether or not to send updates (keepalive/titles etc)
+	private volatile boolean updates = false;
+	
 	// If this is cancelled
-	private boolean cancelled = false;
+	private volatile boolean cancelled = false;
 	// If this is running
-	private boolean running = false;
+	private volatile boolean running = false;
 	
 	// The current future. this is not null if the last future was a success.	
-	private ChannelFuture channelFuture = null;
+	private volatile ChannelFuture channelFuture = null;
+	private final Object futureSync = new Object();
+	
+	// last time a try was attempted
+	private volatile long lastFutureTime = 0;
 	
 	// The current holder if any
-	private Holder holder = null;
+	private volatile Holder holder = null;
 	
 	/**
 	 * 
@@ -167,7 +169,7 @@ public class Reconnecter {
 	 * Once the reconnecter is finished/cancelled This method will not work!
 	 * Create a new instance instead
 	 */
-	public void start() {
+	public synchronized void start() {
 		if (running && !cancelled) {
 			return;
 		}
@@ -181,7 +183,7 @@ public class Reconnecter {
 	}
 	
 	/**
-	 * Called when a retry should occer
+	 * Called when a retry should occur
 	 */
 	private void retry() {
 		// invoke the "run" runnable after 50 msec
@@ -253,9 +255,14 @@ public class Reconnecter {
 			try {
 				// wait for the future to finish or fail for no longer then reconnect timeout
 				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
-				tryCloseChannel(channelFuture);
-				channelFuture = future;
-				lastFutureTime = System.nanoTime();
+				synchronized (futureSync) {
+					if (cancelled) {
+						return;
+					}
+					tryCloseChannel(channelFuture);
+					channelFuture = future;
+					lastFutureTime = System.nanoTime();	
+				}
 			} catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
 				dropHolder();
 				closeChannel(future);
@@ -300,9 +307,11 @@ public class Reconnecter {
 	 * @throws Exception when and if an exception occurs
 	 */
 	public void closeChannel(ChannelFuture future) throws Exception {
-		if (future != null) {
-			future.channel().close();
-			future.cancel(true);
+		synchronized (futureSync) {
+			if (future != null) {
+				future.channel().close();
+				future.cancel(true);
+			}	
 		}
 	}
 	
@@ -310,22 +319,25 @@ public class Reconnecter {
 	 * Called to cancel, close and remove the channelFuture from this reconnecter.
 	 */
 	public void removeChannel() {
-		try {
-			closeChannel(channelFuture);
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			channelFuture = null;
-		}
+		synchronized (futureSync) {
+			try {
+				closeChannel(channelFuture);
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				channelFuture = null;
+			}	
+		}	
 	}
 	
 	/**
 	 * Identical to removeChannel but will only do so if the future is incomplete / inactive
 	 */
 	public void removeChannelIfIncomplete() {
-		final ChannelFuture future = this.channelFuture;
-		if (future != null && (!future.isSuccess() || !future.channel().isActive())) {
-			removeChannel();
+		synchronized (futureSync) {
+			if (channelFuture != null && (!channelFuture.isSuccess() || !channelFuture.channel().isActive())) {
+				removeChannel();
+			}	
 		}
 	}
 	
@@ -445,8 +457,7 @@ public class Reconnecter {
 	}
 	
 	/**
-	 * @returns true if {@link Reconnect#getMaxReconnectTime()} has expired
-	 * @returns false otherwise
+	 * @returns true if {@link Reconnect#getMaxReconnectTime()} has expired, false otherwise
 	 */
 	public boolean hasTimedOut() {
 		return getRemainingTime(TimeUnit.NANOSECONDS) < 1;
@@ -539,8 +550,17 @@ public class Reconnecter {
 	/**
 	 * Cancels this reconnecter
 	 * Note: if the player is already connecting to the server this will not stop it.
+	 *  see also {@link Reconnecter#cancel(force)}
 	 */	
 	public void cancel() {
+		cancel(false);
+	}
+	
+	/**
+	 * Cancels this reconnecter
+	 * @param force Should we forcefully cancel the channel even if it's active
+	 */
+	public synchronized void cancel(boolean force) {
 		
 		cancelled = true;
 		running = false;
@@ -552,7 +572,11 @@ public class Reconnecter {
 		clearAnimations();
 		dropHolder();
 		
-		removeChannelIfIncomplete();
+		if (force) {
+			removeChannel();
+		} else {
+			removeChannelIfIncomplete();	
+		}
 	}
 	
 	/**
@@ -569,6 +593,22 @@ public class Reconnecter {
 	 */
 	public UUID getUUID() {
 		return user.getUniqueId();
+	}
+
+	/**
+	 * gets the user this reconnecter is handling
+	 * @return
+	 */
+	public UserConnection getUser() {
+		return user;
+	}
+	
+	/**
+	 * gets the server connection this reconnecter is handling
+	 * @return
+	 */
+	public ServerConnection getServer() {
+		return server;
 	}
 
 }
