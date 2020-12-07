@@ -467,14 +467,14 @@ public class Reconnecter {
 	 * Sends an Action Bar Message containing the reconnect-text to the player.
 	 */
 	private void sendReconnectActionBar(UserConnection user) {
-		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getReconnectingActionBar().replace("{%dots%}", instance.getDots(startTime))));
+		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.animate(this, instance.getReconnectingActionBar())));
 	}
 	
 	/**
 	 * Sends an Action Bar Message containing the connect-text to the player.
 	 */
 	private void sendConnectActionBar(UserConnection user) {
-		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.getConnectingActionBar().replace("{%dots%}", instance.getDots(startTime))));
+		user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(instance.animate(this, instance.getConnectingActionBar())));
 	}
 
 	/**
@@ -491,8 +491,8 @@ public class Reconnecter {
 	 */
 	private Title createReconnectTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
-		title.title(new TextComponent(instance.getReconnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
-		title.subTitle(new TextComponent(instance.getReconnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.title(new TextComponent(instance.animate(this, instance.getReconnectingTitle())));
+		title.subTitle(new TextComponent(instance.animate(this, instance.getReconnectingSubtitle())));
 		title.stay(stayTime);
 		title.fadeIn(0);
 		title.fadeOut(1);
@@ -507,8 +507,8 @@ public class Reconnecter {
 	 */
 	private Title createConnectingTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
-		title.title(new TextComponent(instance.getConnectingTitle().replace("{%dots%}", instance.getDots(startTime))));
-		title.subTitle(new TextComponent(instance.getConnectingSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.title(new TextComponent(instance.animate(this, instance.getConnectingTitle())));
+		title.subTitle(new TextComponent(instance.animate(this, instance.getConnectingSubtitle())));
 		title.stay(stayTime);
 		title.fadeIn(0);
 		title.fadeOut(1);
@@ -524,7 +524,7 @@ public class Reconnecter {
 	private Title createFailedTitle() {
 		Title title = ProxyServer.getInstance().createTitle();
 		title.title(new TextComponent(instance.getFailedTitle()));
-		title.subTitle(new TextComponent(instance.getFailedSubtitle().replace("{%dots%}", instance.getDots(startTime))));
+		title.subTitle(new TextComponent(instance.animate(this, instance.getFailedSubtitle())));
 		title.stay(stayTime);
 		title.fadeIn(0);
 		title.fadeOut(1);
@@ -544,38 +544,6 @@ public class Reconnecter {
 			title.title(new TextComponent(""));
 			title.subTitle(new TextComponent(""));
 			title.send(user);	
-		}
-	}
-
-	/**
-	 * Cancels this reconnecter
-	 * Note: if the player is already connecting to the server this will not stop it.
-	 *  see also {@link Reconnecter#cancel(force)}
-	 */	
-	public void cancel() {
-		cancel(false);
-	}
-	
-	/**
-	 * Cancels this reconnecter
-	 * @param force Should we forcefully cancel the channel even if it's active
-	 */
-	public synchronized void cancel(boolean force) {
-		
-		cancelled = true;
-		running = false;
-		updates = false;
-		
-		instance.remove(this);
-		
-		stopSendingUpdates();
-		clearAnimations();
-		dropHolder();
-		
-		if (force) {
-			removeChannel();
-		} else {
-			removeChannelIfIncomplete();	
 		}
 	}
 	
@@ -609,6 +577,46 @@ public class Reconnecter {
 	 */
 	public ServerConnection getServer() {
 		return server;
+	}
+	
+	/**
+	 * Cancels this reconnecter
+	 * Note: if the player is already connecting to the server this will not stop it.
+	 *  see also {@link Reconnecter#cancel(force)}
+	 */	
+	public void cancel() {
+		cancel(false);
+	}
+	
+	/**
+	 * Gets the nanoTime when this reconnecter was started.
+	 * @return
+	 */
+	public long getStartNanos() {
+		return startTime;
+	}
+	
+	/**
+	 * Cancels this reconnecter
+	 * @param force Should we forcefully cancel the channel even if it's active
+	 */
+	public synchronized void cancel(boolean force) {
+		
+		cancelled = true;
+		running = false;
+		updates = false;
+		
+		instance.remove(this);
+		
+		stopSendingUpdates();
+		clearAnimations();
+		dropHolder();
+		
+		if (force) {
+			removeChannel();
+		} else {
+			removeChannelIfIncomplete();	
+		}
 	}
 
 }

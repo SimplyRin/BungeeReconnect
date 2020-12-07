@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -46,8 +45,7 @@ public class Reconnect extends Plugin implements Listener {
 	
 	private final ProxyServer bungee = ProxyServer.getInstance();
 	
-	private String[] dots = new String[] {".", "..", "..."};
-	private long dots_nanos = 1_000_000_000;
+	private Animations animations = new Animations(this);
 	
 	private String reconnectingTitle = null, reconnectingSubtitle = null, reconnectingActionBar = null;
 	
@@ -156,15 +154,14 @@ public class Reconnect extends Plugin implements Listener {
 	}
 	
 	private void processConfig(Configuration configuration, Logger log) throws Exception {
-		// obtain dots animation list from config
-		List<String> dots = configuration.getStringList("dots-animation");
 		
-		// fallback to default dots animation if defined improperly to prevent AOB error
-		assert(dots.size() > 0) : "\"dots-animation\" was configured improperly. It must have a size of at least 1.";
-		// translate color codes
-		ListIterator<String> it = dots.listIterator();
-		while (it.hasNext()) {
-			it.set(ChatColor.translateAlternateColorCodes('&', it.next()));
+		Configuration animationsConfig = configuration.getSection("Animations");
+		if (animationsConfig != null) {
+			Animations animations = new Animations(this);
+			animations.deserialize(animationsConfig);
+			this.animations = animations;
+		} else {
+			log.warning("Animations configeration is null. Animations will not work until this is resolved.");
 		}
 		
 		// obtain reconnecting formatting from config
@@ -190,18 +187,6 @@ public class Reconnect extends Plugin implements Listener {
 		maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")), TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
 		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
 		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 2000 + configuration.getInt("connect-finalization-timeout"));
-		
-		// set array atomically as other threads may still be using it.
-		this.dots = dots.toArray(new String[dots.size()]);
-		
-		// obtain dots animation delay from config
-		// millis are converted to nanos later
-		dots_nanos = configuration.getInt("dots-animation-millis");
-		if (dots_nanos < titleUpdateRate) {
-			dots_nanos = titleUpdateRate;
-			log.warning("\"dots-animation-millis\" was configured improperly. It must be " + titleUpdateRate + " milliseconds or greater; The value has been clamped to \"title-update-rate\".");
-		}
-		dots_nanos = TimeUnit.MILLISECONDS.toNanos(dots_nanos);
 		
 		// obtain ignored servers from config
 		ignoredServers = configuration.getStringList("ignored-servers");
@@ -341,7 +326,7 @@ public class Reconnect extends Plugin implements Listener {
 	}
 
 	/**
-	 * Removes a reconnect task from the main HashMap
+	 * Fails, cancels and Removes a reconnect task from the main HashMap
 	 *
 	 * @param uuid The UniqueId of the User.
 	 */
@@ -482,19 +467,14 @@ public class Reconnect extends Plugin implements Listener {
 		return failedSubtitle;
 	}
 	
-	public long getDotNanos() {
-		return dots_nanos;
+	public Animations getAnimations() {
+		return animations;
 	}
 	
-	public String getDots(long startTime) {
-		return dots[(int) ((System.nanoTime()-startTime)/dots_nanos) % dots.length];
+	public String animate(Reconnecter c, String s) {
+		return animations.animate(c, s);
 	}
-	
-	public String[] getDots() {
-		// clone the array to prevent non-atomic modification as the array will be accessed by different threads.
-		return dots.clone();
-	}
-	
+
 	public List<ServerInfo> getFallbackServersFor(UserConnection user) {
 		List<ServerInfo> servers = new ArrayList<ServerInfo>();
 		user.getPendingConnection().getListener().getServerPriority().forEach(s -> servers.add(bungee.getServerInfo(s)));
