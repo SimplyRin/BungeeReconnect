@@ -209,13 +209,6 @@ public class Reconnecter {
 			// Remove pending reconnect because we are about to reconnect them.
 			user.getPendingConnects().remove(target);
 			
-			// Do this again in-case a plugin fucked with us.
-			// Set the server connection that they are currently on to obsolete.
-			server.setObsolete(true);
-			
-			// Remove pending reconnect because we are about to reconnect them.
-			user.getPendingConnects().remove(target);
-			
     		// Create channel initializer.
 			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
 			
