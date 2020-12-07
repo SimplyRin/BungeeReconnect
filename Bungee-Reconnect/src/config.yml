@@ -12,7 +12,7 @@ Animations:
   # It will be replaced with the correct animation when it is found in a value that supports animations
   "%dots%":
     # At what frequency should the animation play
-    # 1000 = 1 dot per second
+    # 1000 = 1 change per second
     # Minimum value is update-rate
     Delay Millis: 1000
     # The animation itself

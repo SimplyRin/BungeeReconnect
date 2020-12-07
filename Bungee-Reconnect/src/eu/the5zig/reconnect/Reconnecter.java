@@ -24,12 +24,9 @@ import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.ServerConnectRequest;
 import net.md_5.bungee.api.Title;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.event.ServerConnectEvent;
-import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.protocol.packet.KeepAlive;
 
@@ -211,21 +208,6 @@ public class Reconnecter {
 			
 			// Remove pending reconnect because we are about to reconnect them.
 			user.getPendingConnects().remove(target);
-			
-			ServerConnectEvent event = new ServerConnectEvent(user, target, Reason.SERVER_DOWN_REDIRECT, ServerConnectRequest.builder()
-					.target(target)
-					.reason(Reason.SERVER_DOWN_REDIRECT)
-					.retry(false)
-					.connectTimeout(instance.getReconnectTimeout())
-					.build()
-					);
-			bungee.getPluginManager().callEvent(event);
-			
-			if (event.isCancelled()) {
-				instance.cancelReconnecterFor(getUUID());
-				instance.getLogger().info("Cannot reconnect \"" + user.getName() + "\" because a plugin cancelled the connect event");
-				return;
-			}
 			
 			// Do this again in-case a plugin fucked with us.
 			// Set the server connection that they are currently on to obsolete.
