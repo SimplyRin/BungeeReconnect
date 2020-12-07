@@ -2,14 +2,13 @@ package eu.the5zig.reconnect;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import eu.the5zig.reconnect.util.concurrent.MyReentrantLock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerQueue {
 	
 	private final QueueManager parent;	
 	
-	private final MyReentrantLock lock = new MyReentrantLock(true);
+	private final ReentrantLock lock = new ReentrantLock(true);
 	
 	private volatile AtomicBoolean wait = new AtomicBoolean(false);
 	
