@@ -232,6 +232,7 @@ public class Reconnecter {
 				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
 				synchronized (futureSync) {
 					if (cancelled) {
+						tryCloseChannel(future);
 						return;
 					}
 					tryCloseChannel(channelFuture);
