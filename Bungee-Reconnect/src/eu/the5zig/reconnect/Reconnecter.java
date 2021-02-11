@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import eu.the5zig.reconnect.net.BasicChannelInitializer;
 import eu.the5zig.reconnect.util.MyPipelineUtils;
@@ -36,6 +37,7 @@ public class Reconnecter {
 	private static final Random rand = new Random();
 	
 	private final Reconnect instance;
+	private final Logger log;
 	private final ProxyServer bungee;
 	private final UserConnection user;
 	private final ServerConnection server;
@@ -76,6 +78,7 @@ public class Reconnecter {
 	 */
 	public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
 		this.instance = instance;
+		this.log = instance.getLogger();
 		this.bungee = bungee;
 		this.user = user;
 		this.server = server;
@@ -106,7 +109,7 @@ public class Reconnecter {
 					 */
 					if (future != null) {
 						
-						// check if the channel has been canceled or has completed but failed
+						// check if the channel has been canceled or has completed but failed or has timed out
 						if (!future.isCancelled() && !(future.isDone() && !(future.isSuccess() && future.channel().isActive())) && lastFutureTime + TimeUnit.MILLISECONDS.toNanos(instance.getReconnectTimeout()) > System.nanoTime()) {
 							retry();
 							return;	
@@ -191,38 +194,35 @@ public class Reconnecter {
 	 * Abstracted logic that is called every time a new connection attempt should be made
 	 */
 	@SuppressWarnings("deprecation")
-	private void tryReconnect() {
+	private synchronized void tryReconnect() {
 
 		try {
 			
 			// create entry in queue and wait if needed
-			holder = instance.waitForConnect(target, getRemainingTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
+			holder = instance.waitForConnect(target, user, getRemainingTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
 			
-			if (!statusCheck()) {
+			if (!statusCheck() || holder == null) {
 				cancel();
 				return;
 			}
 			
-			// Set the server connection that they are currently on to obsolete.
-			server.setObsolete(true);
-			
-			// Remove pending reconnect because we are about to reconnect them.
-			user.getPendingConnects().remove(target);
+        	// add pending connect
+        	user.getPendingConnects().add(target);
+        	
+            // clear plugin messages
+            user.getPendingConnection().getRelayMessages().clear();
+            
+			user.getServer().setObsolete(true);
 			
     		// Create channel initializer.
-			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);		
+			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
 			
 			// Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
 			Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(target.getAddress())).group(server.getCh().getHandle().eventLoop()).handler(initializer).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout()).remoteAddress(target.getAddress());
 			
-			user.getPendingConnects().add(target);
-			
             if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows() && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress) {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
-			
-            // clear plugin messages
-            user.getPendingConnection().getRelayMessages().clear();
             
 			// connect
 			ChannelFuture future = bootstrap.connect();
@@ -240,13 +240,14 @@ public class Reconnecter {
 					lastFutureTime = System.nanoTime();	
 				}
 			} catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
+				//log.log(Level.FINE, "a reconnect attempt for \"" + user.getName() + "\" to \"" + target.getName() + "\" threw an exception", e);
 				dropHolder();
 				closeChannel(future);
 			}
 			
 		} catch (Exception e) { // if any other exception occurs here log it.
 			dropHolder();
-			instance.getLogger().log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
+			log.log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
 		}
 		// Call next retry to check the connection state etc irrelevant of the outcome of the future.
 		retry();
@@ -272,7 +273,7 @@ public class Reconnecter {
 			closeChannel(future);
 		} catch (Exception e) {
 			if (!(e instanceof InterruptedException || e instanceof IOException)) {
-				instance.getLogger().log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
+				log.log(Level.WARNING, "Unexpected exception while closing inactive channel", e);
 			}
 		}
 	}

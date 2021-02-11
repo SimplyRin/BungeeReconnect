@@ -229,11 +229,9 @@ public class Reconnect extends Plugin implements Listener {
 		// We need to override the Downstream class of each user so that we can override the disconnect methods of it.
 		// ServerSwitchEvent is called just right after the Downstream Bridge has been initialized, so we simply can
 		// instantiate here our own implementation of the DownstreamBridge
-		//
-		// @see net.md_5.bungee.ServerConnector#L249
 		setBridgeOf((UserConnection) event.getPlayer());
 		
-		// cancel reconnecter instantly if the users switches servers
+		// cancel reconnecter instantly if the user switches servers
 		Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
 		if (re != null && !re.isSameInfo()) {
 			re.cancel(true);
@@ -482,13 +480,14 @@ public class Reconnect extends Plugin implements Listener {
 	}
 	
 	/**
-	 * @param server The server this is bound to
+	 * @param server the server this is bound to
+	 * @param who the player that is waiting
 	 * @param timeout how long will you wait in the queue
 	 * @param timeoutUnit The timeunit for timeout
 	 * @returns holder that can be unlocked when done.
 	 */
-	public Holder waitForConnect(ServerInfo server, long timeout, TimeUnit timeoutUnit) {
-		return queueManager.queue(server, timeout, timeoutUnit);
+	public Holder waitForConnect(ServerInfo server, UserConnection who, long timeout, TimeUnit timeoutUnit) {
+		return queueManager.queue(server, who, timeout, timeoutUnit);
 	}
 
 }

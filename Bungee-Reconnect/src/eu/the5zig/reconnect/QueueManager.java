@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 
+import eu.the5zig.reconnect.api.PlayerQueueEvent;
+import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.config.ServerInfo;
 
 public class QueueManager {
@@ -20,10 +22,17 @@ public class QueueManager {
 		this.instance = instance;
 	}
 	
-	public synchronized Holder queue(ServerInfo info, long queueTimeout, TimeUnit queueTimeoutUnit) {
+	public synchronized Holder queue(ServerInfo info, UserConnection con, long queueTimeout, TimeUnit queueTimeoutUnit) {
 		ServerQueue queue = getServerQueue(info);
 		
-		return queue.queue(queueTimeout, queueTimeoutUnit);		
+		PlayerQueueEvent e = new PlayerQueueEvent(info, queue, con, queueTimeout, queueTimeoutUnit);
+		instance.getProxy().getPluginManager().callEvent(e);
+		
+		if (e.isCancelled()) {
+			return null;
+		}
+		
+		return e.getQueue().queue(queueTimeout, queueTimeoutUnit);
 	}
 	
 	public ServerQueue getServerQueue(ServerInfo info) {

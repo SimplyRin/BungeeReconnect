@@ -18,18 +18,17 @@ public class ServerQueue {
 		this.parent = parent;
 	}
 	
-	public synchronized Holder queue(long timeout, TimeUnit unit) {				
+	public synchronized Holder queue(long timeout, TimeUnit unit) {
+		
 		try {
 			if (lock.tryLock(timeout, unit)) {
 				long ctime = System.nanoTime();
 				
 				long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 1);
-				//lastTime = ctime + sleepTime;
 				
 				try {
 					Thread.sleep(TimeUnit.NANOSECONDS.toMillis(sleepTime));
 				} catch (InterruptedException e) {
-					//lastTime = System.nanoTime();
 					e.printStackTrace();
 				}
 				
