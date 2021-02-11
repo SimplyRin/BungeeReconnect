@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Preconditions;
 
 import eu.the5zig.reconnect.ServerQueue;
+import eu.the5zig.reconnect.StandardServerQueue;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Cancellable;
@@ -46,7 +47,7 @@ public class PlayerQueueEvent extends Event implements Cancellable {
 		return currentQueue;
 	}
 
-	public void setQueue(ServerQueue queue) {
+	public void setQueue(StandardServerQueue queue) {
 		Preconditions.checkNotNull(queue);
 		this.currentQueue = queue;
 	}

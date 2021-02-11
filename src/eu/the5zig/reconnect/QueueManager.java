@@ -40,7 +40,7 @@ public class QueueManager {
 			ServerQueue queue = serverQueueMap.get(info);
 			
 			if (queue == null) {
-				queue = new ServerQueue(this);
+				queue = new StandardServerQueue(this);
 				serverQueueMap.put(info, queue);
 			}
 			

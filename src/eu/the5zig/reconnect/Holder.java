@@ -5,10 +5,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Holder {
 	
-	private final ServerQueue parent;
+	private final StandardServerQueue parent;
 	private AtomicBoolean wait;
 	
-	protected Holder(ServerQueue parent, AtomicBoolean wait) {
+	protected Holder(StandardServerQueue parent, AtomicBoolean wait) {
 		this.parent = parent;
 		this.wait = wait;
 	} 
