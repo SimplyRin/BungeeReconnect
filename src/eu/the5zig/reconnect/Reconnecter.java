@@ -25,7 +25,6 @@ import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.ServerConnectRequest;
 import net.md_5.bungee.api.Title;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
@@ -224,8 +223,6 @@ public class Reconnecter {
             if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows() && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress) {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
-            
-            user.connect((ServerConnectRequest)null);
             
 			// connect
 			ChannelFuture future = bootstrap.connect();
