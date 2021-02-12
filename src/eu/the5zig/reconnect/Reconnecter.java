@@ -334,7 +334,7 @@ public class Reconnecter {
 		server.setObsolete(true);
 		
 		// Send fancy title if it's enabled in config, otherwise reset the connecting title.
-		if (!instance.getFailedTitle().isEmpty()) {
+		if (!(instance.getFailedTitle().isEmpty() && instance.getFailedSubtitle().isEmpty())) {
 			user.sendTitle(createFailedTitle());
 		} else {
 			user.sendTitle(ProxyServer.getInstance().createTitle().reset());
@@ -387,7 +387,7 @@ public class Reconnecter {
 			user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
 			if (channelFuture == null) {
 				// Send fancy Title
-				if (!instance.getReconnectingTitle().isEmpty()) {
+				if (!(instance.getReconnectingTitle().isEmpty() && instance.getReconnectingSubtitle().isEmpty())) {
 					createReconnectTitle().send(user);
 				}
 
@@ -398,7 +398,7 @@ public class Reconnecter {
 	
 			} else {					
 				// Send fancy Title
-				if (!instance.getConnectingTitle().isEmpty()) {
+				if (!(instance.getConnectingTitle().isEmpty() && instance.getConnectingSubtitle().isEmpty())) {
 					createConnectingTitle().send(user);
 				}
 
