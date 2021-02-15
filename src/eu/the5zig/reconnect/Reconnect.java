@@ -5,6 +5,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.security.cert.CertPathValidatorException.Reason;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -17,25 +19,24 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import javax.security.auth.callback.Callback;
+import javax.security.auth.login.Configuration;
+
 import com.google.common.base.Strings;
 import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
 
 import eu.the5zig.reconnect.api.ServerReconnectEvent;
 import eu.the5zig.reconnect.command.CommandReconnect;
 import eu.the5zig.reconnect.net.ReconnectBridge;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
-import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
@@ -236,7 +237,7 @@ public class Reconnect extends Plugin implements Listener {
 		if (re != null && !re.isSameInfo()) {
 			re.cancel(true);
 			final ServerConnection currentServer = re.getUser().getServer();
-			getLogger().info("Cancelled reconnect for \"" + re.getUser().getName()
+			getLogger().info("Canceled reconnect for \"" + re.getUser().getName()
 					+ "\" on \"" + re.getServer().getInfo().getName() 
 					+ "\" as they have switched servers to \"" 
 					+ (currentServer == null ? "null?" : currentServer.getInfo().getName() + "\""));
