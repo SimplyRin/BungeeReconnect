@@ -214,17 +214,13 @@ public class Reconnecter {
 				return;
 			}
         	
-			instance.debug(r, "invoking synchronous methods");
-        	Sched.callOnMainThread(instance, () -> {
-            	// add pending connect
-            	user.getPendingConnects().add(target);
-        		
-                // clear plugin messages
-                user.getPendingConnection().getRelayMessages().clear();
-                
-    			user.getServer().setObsolete(true);
-    			return null;
-        	}).get();
+        	// add pending connect
+        	user.getPendingConnects().add(target);
+    		
+            // clear plugin messages
+            user.getPendingConnection().getRelayMessages().clear();
+            
+			user.getServer().setObsolete(true);
 			
     		// Create channel initializer.
 			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
