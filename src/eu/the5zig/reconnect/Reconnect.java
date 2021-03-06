@@ -5,8 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.security.cert.CertPathValidatorException.Reason;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -14,29 +12,32 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Filter;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import javax.security.auth.callback.Callback;
-import javax.security.auth.login.Configuration;
-
 import com.google.common.base.Strings;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 
 import eu.the5zig.reconnect.api.ServerReconnectEvent;
 import eu.the5zig.reconnect.command.CommandReconnect;
 import eu.the5zig.reconnect.net.ReconnectBridge;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
+import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
@@ -45,6 +46,8 @@ import net.md_5.bungee.netty.HandlerBoss;
 public class Reconnect extends Plugin implements Listener {
 	
 	private final ProxyServer bungee = ProxyServer.getInstance();
+	
+	private boolean debug = false;
 	
 	private Animations animations = new Animations(this);
 	
@@ -71,7 +74,6 @@ public class Reconnect extends Plugin implements Listener {
 
 	@Override
 	public void onEnable() {
-		getLogger().setLevel(Level.FINE);
 		
 		// load Configuration
 		if (tryReloadConfig(getLogger())) {
@@ -81,8 +83,43 @@ public class Reconnect extends Plugin implements Listener {
 			}
 		}
 		
+		fixLogger();
+		
 		// setup Command
 		getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
+	}
+	
+	public void fixLogger() {
+		getLogger().setFilter(new Filter() {
+			
+			@Override
+			public boolean isLoggable(LogRecord r) {
+				// eat mega shit dicks bungee
+				if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
+					r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
+					r.setLevel(Level.INFO);
+				}
+				return true;
+			}
+		});
+	}
+	
+	public void debug(Object o, String m, Throwable t) {
+		if (debug) {
+			getLogger().log(Level.FINE, o + " " + m, t);
+		}
+	}
+	
+	public void debug(Object o, String m) {
+		if (debug) {
+			getLogger().log(Level.FINE, o + " " + m);
+		}
+	}
+	
+	public void debug(String m) {
+		if (debug) {
+			getLogger().log(Level.FINE, m);
+		}
 	}
 	
 	private void registerListener() {
@@ -155,6 +192,8 @@ public class Reconnect extends Plugin implements Listener {
 	}
 	
 	private void processConfig(Configuration configuration, Logger log) throws Exception {
+		
+		this.debug = configuration.getBoolean("debug");
 		
 		Configuration animationsConfig = configuration.getSection("Animations");
 		if (animationsConfig != null) {
@@ -237,7 +276,7 @@ public class Reconnect extends Plugin implements Listener {
 		if (re != null && !re.isSameInfo()) {
 			re.cancel(true);
 			final ServerConnection currentServer = re.getUser().getServer();
-			getLogger().info("Canceled reconnect for \"" + re.getUser().getName()
+			getLogger().info("Cancelled reconnect for \"" + re.getUser().getName()
 					+ "\" on \"" + re.getServer().getInfo().getName() 
 					+ "\" as they have switched servers to \"" 
 					+ (currentServer == null ? "null?" : currentServer.getInfo().getName() + "\""));
@@ -286,15 +325,14 @@ public class Reconnect extends Plugin implements Listener {
 	 */
 	public void reconnectIfOnline(UserConnection user, ServerConnection server) {
 		getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
-		synchronized (reconnecters) {
-			if (isUserOnline(user)) {
-				if (!isReconnecting(user.getUniqueId())) {
-					reconnect(user, server);
-				}
-			} else {
-				cancelReconnecterFor(user.getUniqueId());
-			}	
-		}
+		if (isUserOnline(user)) {
+			if (!isReconnecting(user.getUniqueId())) {
+				reconnect(user, server);
+			}
+		} else {
+			debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
+			cancelReconnecterFor(user.getUniqueId());
+		}	
 	}
 	
 	/**
@@ -379,7 +417,9 @@ public class Reconnect extends Plugin implements Listener {
 	 * @return true, if there is a task that tries to reconnect the User to a server.
 	 */
 	public boolean isReconnecting(UUID uuid) {
-		return reconnecters.containsKey(uuid);
+		synchronized (reconnecters) {
+			return reconnecters.containsKey(uuid);	
+		}
 	}
 
 	public String getReconnectingTitle() {

@@ -6,6 +6,9 @@
 #   while a backup of the old config will be kept as "config.old.ver.<OLD VERSION>.yml".
 version: 13
 
+# Should debugging messages be shown?
+debug: false
+
 # This is for configuring custom animations.
 Animations:
   # This is the placeholder of the animation. 

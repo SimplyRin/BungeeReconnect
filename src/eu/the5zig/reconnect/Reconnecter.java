@@ -36,6 +36,8 @@ public class Reconnecter {
 	private static final TextComponent EMPTY = new TextComponent("");
 	private static final Random rand = new Random();
 	
+	private final Reconnecter r = this;
+	
 	private final Reconnect instance;
 	private final Logger log;
 	private final ProxyServer bungee;
@@ -90,6 +92,7 @@ public class Reconnecter {
 	private final Runnable run = new Runnable() {
 		@Override
 		public void run() {
+			instance.debug(r, "running");
 			if (cancelled) {
 				return;
 			}
@@ -111,6 +114,7 @@ public class Reconnecter {
 						
 						// check if the channel has been canceled or has completed but failed or has timed out
 						if (!future.isCancelled() && !(future.isDone() && !(future.isSuccess() && future.channel().isActive())) && lastFutureTime + TimeUnit.MILLISECONDS.toNanos(instance.getReconnectTimeout()) > System.nanoTime()) {
+							instance.debug(r, "channel future failed");
 							retry();
 							return;	
 						}
@@ -123,6 +127,8 @@ public class Reconnecter {
 					tryReconnect();
 					return;
 				}
+			} else {
+				instance.debug(r, "status check returned false");
 			} //Otherwise cancel this reconnecter as it ain't needed no more
 			cancel();
 		}
@@ -173,6 +179,7 @@ public class Reconnecter {
 		if (running && !cancelled) {
 			return;
 		}
+		log.fine("starting reconnecter for \"" + user.getName() + "\" will be waiting for: " + instance.getDelayBeforeTrying());
 		running = true;
 		startTime = System.nanoTime();
 		
@@ -195,24 +202,29 @@ public class Reconnecter {
 	 */
 	@SuppressWarnings("deprecation")
 	private synchronized void tryReconnect() {
-
 		try {
 			
 			// create entry in queue and wait if needed
+			instance.debug(r, "enqueuing for attempt");
 			holder = instance.waitForConnect(target, user, getRemainingTime(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS);
 			
 			if (!statusCheck() || holder == null) {
+				instance.debug(r, "post-queue status check returned false");
 				cancel();
 				return;
 			}
-			
-        	// add pending connect
-        	user.getPendingConnects().add(target);
         	
-            // clear plugin messages
-            user.getPendingConnection().getRelayMessages().clear();
-            
-			user.getServer().setObsolete(true);
+			instance.debug(r, "invoking synchronous methods");
+        	Sched.callOnMainThread(instance, () -> {
+            	// add pending connect
+            	user.getPendingConnects().add(target);
+        		
+                // clear plugin messages
+                user.getPendingConnection().getRelayMessages().clear();
+                
+    			user.getServer().setObsolete(true);
+    			return null;
+        	}).get();
 			
     		// Create channel initializer.
 			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
@@ -225,6 +237,7 @@ public class Reconnecter {
             }
             
 			// connect
+            instance.debug(r, "connecting...");
 			ChannelFuture future = bootstrap.connect();
 			
 			try {
@@ -232,14 +245,18 @@ public class Reconnecter {
 				future.get(instance.getReconnectTimeout(), TimeUnit.MILLISECONDS);
 				synchronized (futureSync) {
 					if (cancelled) {
+						instance.debug(r, "post-connect cancelled check returned true");
 						tryCloseChannel(future);
 						return;
 					}
+					instance.debug(r, "connection established.");
+					// ensure old future is closed
 					tryCloseChannel(channelFuture);
 					channelFuture = future;
 					lastFutureTime = System.nanoTime();	
 				}
 			} catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
+				instance.debug(r, "exception connecting", e);
 				//log.log(Level.FINE, "a reconnect attempt for \"" + user.getName() + "\" to \"" + target.getName() + "\" threw an exception", e);
 				dropHolder();
 				closeChannel(future);
@@ -564,7 +581,7 @@ public class Reconnecter {
 	public void cancel() {
 		cancel(false);
 	}
-	
+
 	/**
 	 * Gets the nanoTime when this reconnecter was started.
 	 * @return
@@ -578,6 +595,7 @@ public class Reconnecter {
 	 * @param force Should we forcefully cancel the channel even if it's active
 	 */
 	public synchronized void cancel(boolean force) {
+		instance.debug(r, "cancel invoked. " + force);
 		
 		cancelled = true;
 		running = false;
@@ -594,6 +612,14 @@ public class Reconnecter {
 		} else {
 			removeChannelIfIncomplete();	
 		}
+	}
+	
+	@Override
+	public String toString() {
+		return "Reconnecter [user=" + user + ", target=" + target + ", startTime=" + startTime
+				+ ", updateRate=" + updateRate + ", stayTime=" + stayTime + ", updatesTaskNull?=" + (updatesTask == null)
+				+ ", updates=" + updates + ", cancelled=" + cancelled + ", running=" + running + ", channelFuture="
+				+ channelFuture + ", lastFutureTime=" + lastFutureTime + ", holder=" + holder + ", statusCheck()=" + statusCheck() + "]";
 	}
 
 }
