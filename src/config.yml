@@ -4,7 +4,7 @@
 # The current version of this configuration. Do NOT change this value!
 # If the plugin uses a more recent config version, this config gets replaced by it
 #   while a backup of the old config will be kept as "config.old.ver.<OLD VERSION>.yml".
-version: 13
+version: 14
 
 # Should debugging messages be shown?
 debug: false
@@ -91,8 +91,14 @@ reconnect-timeout: 6000
 # be mindful to set this value high enough to also accommodate for delay-between-reconnects. 
 max-reconnect-time: 240000
 
-# A List containing all servers that don't allow automatic reconnecting.
-ignored-servers: [serverWithNoReconnectsA, serverWithNoReconnectsB]
+# Control what servers users are automatically reconnected to.
+servers:
+  # Blacklist & Whitelist mode
+  mode: blacklist
+  # The list of servers to apply the filter to
+  list:
+    - "some_server"
+    - "some_other_server"
 
 # This block is necessary for the plugin to differentiate whether a kick happened because of a shutdown or not.
 shutdown:  
