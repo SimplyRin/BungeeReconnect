@@ -30,7 +30,7 @@ public class ReconnectBridge extends DownstreamBridge {
 
 	@Override
 	public void exception(Throwable t) throws Exception {
-		instance.debug(this, "exception thrown on this bridge for user \"" + user.getName() + "\"");
+		instance.debug(this, "exception thrown on this bridge for user \"" + user.getName() + "\"", t);
 		// Usually, BungeeCord would reconnect the Player to the fallback server or kick him if not
 		// Fallback Server is available, when an Exception between the BungeeCord and the Minecraft Server
 		// occurs. We override this Method so that we can try to reconnect the client instead.

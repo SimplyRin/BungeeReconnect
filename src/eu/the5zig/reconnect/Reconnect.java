@@ -60,7 +60,8 @@ public class Reconnect extends Plugin implements Listener {
 	private int delayBeforeTrying = 0, reconnectTimeout = 0,  titleUpdateRate = 50;
 	private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
 	
-	private List<String> ignoredServers = new ArrayList<>();
+	private List<String> serversList = new ArrayList<>();
+	private boolean whitelist = true;
 	
 	private String shutdownMessage = "Server closed";
 	private Pattern shutdownPattern = null;
@@ -228,8 +229,9 @@ public class Reconnect extends Plugin implements Listener {
 		connctFinalizationNanos = Math.max(0, TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
 		reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"), 2000 + configuration.getInt("connect-finalization-timeout"));
 		
-		// obtain ignored servers from config
-		ignoredServers = configuration.getStringList("ignored-servers");
+		// obtain ignored/allowed servers from config
+		whitelist = resolveMode(configuration.getString("servers.mode"));
+		serversList = configuration.getStringList("servers.list");
 		
 		// obtain shutdown values from config
 		String shutdownText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.text"));
@@ -290,8 +292,21 @@ public class Reconnect extends Plugin implements Listener {
 		con.getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
 	}
 
+	private boolean resolveMode(String mode) {
+		switch (mode.toLowerCase()) {
+		case "whitelist":
+		    return true;
+		case "blacklist":
+		    return false;
+		default:
+			getLogger().warning("servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
+			getLogger().warning("defaulting to whitelist just in case.");
+			return false;
+		}
+	}
+
 	public boolean isIgnoredServer(ServerInfo server) {
-		return ignoredServers.contains(server.getName());
+		return whitelist ^ serversList.contains(server.getName());
 	}
 	
 	/**
