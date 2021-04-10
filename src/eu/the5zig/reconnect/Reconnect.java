@@ -300,7 +300,7 @@ public class Reconnect extends Plugin implements Listener {
 		    return false;
 		default:
 			getLogger().warning("servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
-			getLogger().warning("defaulting to whitelist just in case.");
+			getLogger().warning("defaulting to blacklist.");
 			return false;
 		}
 	}
