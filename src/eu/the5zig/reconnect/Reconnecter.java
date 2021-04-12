@@ -602,7 +602,6 @@ public class Reconnecter {
 		dropHolder();
 		
 		user.getPendingConnects().remove(target);
-		server.setObsolete(true);
 		
 		if (force) {
 			removeChannel();
