@@ -218,7 +218,7 @@ public class Reconnecter {
             // clear plugin messages
             user.getPendingConnection().getRelayMessages().clear();
             
-			user.getServer().setObsolete(true);
+			server.setObsolete(true);
 			
     		// Create channel initializer.
 			ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
@@ -602,7 +602,6 @@ public class Reconnecter {
 		dropHolder();
 		
 		user.getPendingConnects().remove(target);
-		server.setObsolete(true);
 		
 		if (force) {
 			removeChannel();
