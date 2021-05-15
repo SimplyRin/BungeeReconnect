@@ -8,6 +8,7 @@
 	<name>Bungee-Reconnect</name>
 	<description>A simple BungeeCord-Plugin that automatically tries to reconnect all players whenever a server restarts.</description>
 	<build>
+		<defaultGoal>clean package</defaultGoal>
 		<finalName>${project.name}-${project.version}</finalName>
 		<sourceDirectory>src</sourceDirectory>
 		<resources>
