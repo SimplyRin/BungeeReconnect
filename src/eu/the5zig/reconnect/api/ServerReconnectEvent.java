@@ -6,33 +6,34 @@ import net.md_5.bungee.api.plugin.Event;
 
 public class ServerReconnectEvent extends Event {
 
-	private final ProxiedPlayer player;
-	private ServerInfo target;
-	private boolean cancelled;
+    private final ProxiedPlayer player;
+    private ServerInfo target;
+    private boolean cancelled;
 
-	public ServerReconnectEvent(ProxiedPlayer player, ServerInfo target) {
-		this.player = player;
-		this.target = target;
-	}
+    public ServerReconnectEvent(ProxiedPlayer player, ServerInfo target) {
+	this.player = player;
+	this.target = target;
+    }
 
-	public ProxiedPlayer getPlayer() {
-		return this.player;
-	}
+    public ProxiedPlayer getPlayer() {
+	return this.player;
+    }
 
-	public ServerInfo getTarget() {
-		return this.target;
-	}
+    public ServerInfo getTarget() {
+	return this.target;
+    }
 
-	public boolean isCancelled() {
-		return this.cancelled;
-	}
+    public boolean isCancelled() {
+	return this.cancelled;
+    }
 
-	public void setCancelled(boolean cancelled) {
-		this.cancelled = cancelled;
-	}
+    public void setCancelled(boolean cancelled) {
+	this.cancelled = cancelled;
+    }
 
-	public String toString() {
-		return "ServerReconnectEvent(player=" + this.getPlayer() + ", target=" + this.getTarget() + ", cancelled=" + this.isCancelled() + ")";
-	}
+    @Override
+    public String toString() {
+	return "ServerReconnectEvent(player=" + this.getPlayer() + ", target=" + this.getTarget() + ", cancelled=" + this.isCancelled() + ")";
+    }
 
 }
