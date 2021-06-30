@@ -96,8 +96,7 @@ public class Reconnecter {
             }
             final ChannelFuture future = channelFuture;
             
-            // Only retry to reconnect the user if they are still online and hasn't been
-            // moved to another server etc, do this:
+            // Only retry to reconnect the user if they are still online and hasn't been moved to another server etc, do this:
             if (statusCheck()) {
                 // check if timeout has expired
                 if (hasTimedOut()) {
@@ -113,8 +112,8 @@ public class Reconnecter {
                         // timed out
                         if (!future.isCancelled()
                                 && !(future.isDone() && !(future.isSuccess() && future.channel().isActive()))
-                                && lastFutureTime + TimeUnit.MILLISECONDS
-                                        .toNanos(instance.getReconnectTimeout()) > System.nanoTime()) {
+                                && lastFutureTime + TimeUnit.MILLISECONDS.toNanos(instance.getReconnectTimeout()) > System.nanoTime()
+                                ) {
                             instance.debug(Reconnecter.this, "channel future failed");
                             retry();
                             return;
@@ -145,8 +144,7 @@ public class Reconnecter {
     }
     
     /**
-     * Checks of the user is connected to the same server info as the one they lost
-     * connection to.
+     * Checks of the user is connected to the same server info as the one they lost connection to.
      * 
      * @return if the user is on the same server info
      */
@@ -156,8 +154,7 @@ public class Reconnecter {
     }
     
     /**
-     * Checks of the user is connected to the same server as the one they lost
-     * connection to.
+     * Checks of the user is connected to the same server as the one they lost connection to.
      * 
      * @return if the user is on the same server connection
      */
@@ -175,11 +172,9 @@ public class Reconnecter {
     }
     
     /**
-     * Only when called this reconnecter will attempt to function Can only be called
-     * once.
+     * Only when called this reconnecter will attempt to function Can only be called once.
      * 
-     * Once the reconnecter is finished/cancelled This method will not work! Create
-     * a new instance instead
+     * Once the reconnecter is finished/cancelled This method will not work! Create a new instance instead
      */
     public synchronized void start() {
         if (running && !cancelled) {
@@ -237,8 +232,7 @@ public class Reconnecter {
             // Create channel initializer.
             ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, target);
             
-            // Create a new Netty Bootstrap that contains the ChannelInitializer and the
-            // ChannelFutureListener.
+            // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
             Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(target.getAddress()))
                     .group(server.getCh().getHandle().eventLoop()).handler(initializer)
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, instance.getReconnectTimeout())
@@ -270,19 +264,15 @@ public class Reconnecter {
                 }
             } catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
                 instance.debug(Reconnecter.this, "exception connecting", e);
-                // log.log(Level.FINE, "a reconnect attempt for \"" + user.getName() + "\" to
-                // \"" + target.getName() + "\" threw an exception", e);
                 dropHolder();
                 closeChannel(future);
             }
             
         } catch (Exception e) { // if any other exception occurs here log it.
             dropHolder();
-            log.log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName()
-                    + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
+            log.log(Level.WARNING, "unexpected exception thrown in reconnect task for \"" + user.getName() + "\" for server \"" + target.getName() + "\" : \"" + e.getMessage() + "\"", e);
         }
-        // Call next retry to check the connection state etc irrelevant of the outcome
-        // of the future.
+        // Call next retry to check the connection state etc irrelevant of the outcome of the future.
         retry();
     }
     
