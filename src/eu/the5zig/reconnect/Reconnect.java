@@ -330,8 +330,7 @@ public class Reconnect extends Plugin implements Listener {
      *
      * @param user   The User that should be reconnected.
      * @param server The Server the User should be reconnected to.
-     * @return true, if the ignore list does not contain the server and the event
-     *         hasn't been canceled.
+     * @return true, if the event hasn't been canceled.
      */
     public boolean fireServerReconnectEvent(UserConnection user, ServerConnection server) {
         ServerReconnectEvent event = getProxy().getPluginManager()
@@ -553,7 +552,7 @@ public class Reconnect extends Plugin implements Listener {
     public List<ServerInfo> getFallbackServersFor(UserConnection user) {
         List<ServerInfo> servers = new ArrayList<ServerInfo>();
         user.getPendingConnection().getListener().getServerPriority()
-                .forEach(s -> servers.add(bungee.getServerInfo(s)));
+        .forEach(s -> servers.add(bungee.getServerInfo(s)));
         return servers;
     }
     
