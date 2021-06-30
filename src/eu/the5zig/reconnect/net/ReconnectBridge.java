@@ -32,31 +32,23 @@ public class ReconnectBridge extends DownstreamBridge {
     @Override
     public void exception(Throwable t) throws Exception {
         instance.debug(this, "exception thrown on this bridge for user \"" + user.getName() + "\"", t);
-        // Usually, BungeeCord would reconnect the Player to the fallback server or kick
-        // him if not
-        // Fallback Server is available, when an Exception between the BungeeCord and
-        // the Minecraft Server
-        // occurs. We override this Method so that we can try to reconnect the client
-        // instead.
+        // Usually, BungeeCord would reconnect the Player to the fallback server or kick him if no
+        // Fallback Server is available.
+        // when an Exception between the BungeeCord and the Minecraft Server
+        // occurs. We override this Method so that we can try to reconnect the client instead.
         
-        // do not perform any actions if the user has already moved
-        if (!server.isObsolete()) {
+        // Fire ServerReconnectEvent and give plugins the possibility to cancel server
+        // reconnecting.
+        if (!instance.isIgnoredServer(server.getInfo()) && instance.fireServerReconnectEvent(user, server)) {
+            // setObsolete so that DownstreamBridge.disconnected(ChannelWrapper) won't be called.
+            server.setObsolete(true);
             
-            // Fire ServerReconnectEvent and give plugins the possibility to cancel server
-            // reconnecting.
-            if (!instance.isIgnoredServer(server.getInfo()) && instance.fireServerReconnectEvent(user, server)) {
-                // setObsolete so that DownstreamBridge.disconnected(ChannelWrapper) won't be
-                // called.
-                server.setObsolete(true);
-                
-                instance.reconnectIfOnline(user, server);
-                // prevent default behavior
-                return;
-            } else {
-                instance.debug(this,
-                        "not handling because it's an ignored server or reconnect event has been cancelled");
-            }
-        } // otherwise default behavior
+            instance.reconnectIfOnline(user, server);
+            return;
+        } else {
+            instance.debug(this, "not handling because it's an ignored server or reconnect event has been cancelled");
+        }
+        
         super.exception(t);
     }
     
@@ -72,9 +64,9 @@ public class ReconnectBridge extends DownstreamBridge {
             
             String kickMessage = ChatColor
                     .stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage()))); // needs to
-                                                                                                           // be parsed
-                                                                                                           // like
-                                                                                                           // that...
+            // be parsed
+            // like
+            // that...
             instance.debug(this, "kick message stripped for " + user.getName() + " on server "
                     + server.getInfo().getName() + " : \"" + kickMessage + "\"");
             
