@@ -11,7 +11,8 @@ build:
   stage: build
   script:
     - "mvn package"
+    - "mv ./target/Bungee-Reconnect* ."
   artifacts:
-    name: "BungeeReconnect"
-    paths:
-      - "./target/Bungee-Reconnect*"
+    name: "Bungee-Reconnect"
+    paths: 
+      - "./Bungee-Reconnect*"
