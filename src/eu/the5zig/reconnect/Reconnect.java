@@ -78,7 +78,7 @@ public class Reconnect extends Plugin implements Listener {
         
         // load Configuration
         if (tryReloadConfig(getLogger())) {
-            // set bridges
+            // set bridges in the event of this plugin being loaded by a plugin manager
             for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
                 setBridgeOf((UserConnection) proxiedPlayer);
             }
