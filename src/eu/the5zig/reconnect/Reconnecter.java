@@ -150,7 +150,7 @@ public class Reconnecter {
      */
     public boolean isSameInfo() {
         ServerConnection c = user.getServer();
-        return c == null || target.equals(user.getServer().getInfo());
+        return c == null || target.equals(c.getInfo());
     }
     
     /**
@@ -191,15 +191,23 @@ public class Reconnecter {
         // as keepAlive Packets)
         startSendingUpdates();
         // invoke the "run" runnable after the delay before trying
-        Sched.scheduleAsync(instance, run, instance.getDelayBeforeTrying(), TimeUnit.MILLISECONDS);
+        retry(instance.getDelayBeforeTrying());
     }
     
     /**
      * Called when a retry should occur
      */
     private void retry() {
-        // invoke the "run" runnable after 50 msec
-        Sched.scheduleAsync(instance, run, 50, TimeUnit.MILLISECONDS);
+        // invoke the "run" runnable after 100 msec
+        retry(100);
+    }
+    
+    /**
+     * Called when a retry should occur
+     * @param time how many milliseconds should we wait
+     */
+    private void retry(long time) {
+        Sched.scheduleAsync(instance, run, time, TimeUnit.MILLISECONDS);
     }
     
     /**
