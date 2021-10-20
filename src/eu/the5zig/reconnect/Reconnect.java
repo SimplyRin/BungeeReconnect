@@ -529,7 +529,7 @@ public class Reconnect extends Plugin implements Listener {
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
-            return shutdownMessage.equals(message);
+            return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
     
