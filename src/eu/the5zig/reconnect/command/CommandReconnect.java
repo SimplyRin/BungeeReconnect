@@ -7,6 +7,7 @@ import java.util.List;
 
 import eu.the5zig.reconnect.Reconnect;
 import eu.the5zig.reconnect.util.CmdUtil;
+import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.chat.BaseComponent;
@@ -18,17 +19,41 @@ public class CommandReconnect extends Command implements TabExecutor {
     
     private final Reconnect instance;
     
-    private static final BaseComponent[] help = new ComponentBuilder().color(ChatColor.RED).append("Usage: /reconnect")
-            .append(CmdUtil.jnline).append(" reload").create();
-    private static final BaseComponent[] cmdSubNotFound = new ComponentBuilder().color(ChatColor.RED)
-            .append("Subcommand not found").create();
+    private static final BaseComponent[] help = new ComponentBuilder()
+            .color(ChatColor.RED)
+            .append("Usage: /reconnect")
+            .append(CmdUtil.jnline)
+            .append(" reload")
+            .append(CmdUtil.jnline)
+            .append(" test")
+            .create();
+    private static final BaseComponent[] cmdSubNotFound = new ComponentBuilder()
+            .color(ChatColor.RED)
+            .append("Subcommand not found")
+            .create();
     
-    private static final BaseComponent[] cmdFeedbackReloadAttempt = new ComponentBuilder().color(ChatColor.GOLD)
-            .append("Reloading...").create();
-    private static final BaseComponent[] cmdFeedbackReloadError = new ComponentBuilder().color(ChatColor.RED)
-            .append("Reload failed!").create();
-    private static final BaseComponent[] cmdFeedbackReloadComplete = new ComponentBuilder().color(ChatColor.GREEN)
-            .append("Reload complete.").create();
+    private static final BaseComponent[] cmdFeedbackReloadAttempt = new ComponentBuilder()
+            .color(ChatColor.GOLD)
+            .append("Reloading...")
+            .create();
+    private static final BaseComponent[] cmdFeedbackReloadError = new ComponentBuilder()
+            .color(ChatColor.RED)
+            .append("Reload failed!")
+            .create();
+    private static final BaseComponent[] cmdFeedbackReloadComplete = new ComponentBuilder()
+            .color(ChatColor.GREEN)
+            .append("Reload complete.")
+            .create();
+    
+    private static final BaseComponent[] cmdFeedbackTesting = new ComponentBuilder()
+            .color(ChatColor.GREEN)
+            .append("Testing reconnect")
+            .create();
+    
+    private static final BaseComponent[] cmdFeedbackTestingConsoleError = new ComponentBuilder()
+            .color(ChatColor.RED)
+            .append("you must use this command in-game")
+            .create();
     
     public CommandReconnect(Reconnect instance) {
         super("bungee-reconnect", "reconnect.command", new String[] { "reconnect" });
@@ -47,7 +72,15 @@ public class CommandReconnect extends Command implements TabExecutor {
                     sender.sendMessage(cmdFeedbackReloadError);
                 }
                 break;
-            
+            case "test":
+                if (sender instanceof UserConnection) {
+                    sender.sendMessage(cmdFeedbackTesting);
+                    UserConnection ucon = (UserConnection) sender;
+                    instance.reconnectIfOnline(ucon, ucon.getServer());
+                } else {
+                    sender.sendMessage(cmdFeedbackTestingConsoleError);
+                }
+                break;
             default:
                 sender.sendMessage(cmdSubNotFound);
                 break;
@@ -57,7 +90,7 @@ public class CommandReconnect extends Command implements TabExecutor {
         }
     }
     
-    private static final List<String> baseComplete = Collections.unmodifiableList(Arrays.asList("reload"));
+    private static final List<String> baseComplete = Collections.unmodifiableList(Arrays.asList("reload", "test"));
     
     @Override
     public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
