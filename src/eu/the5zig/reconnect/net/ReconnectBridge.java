@@ -47,17 +47,15 @@ public class ReconnectBridge extends DownstreamBridge {
             return;
         } else {
             instance.debug(this, "not handling because it's an ignored server or reconnect event has been cancelled");
+            super.exception(t);
         }
-        
-        super.exception(t);
     }
     
     @Override
     public void handle(Kick kick) throws Exception {
         instance.debug(this, "kick for " + user.getName() + " on server " + server.getInfo().getName()
                 + " with message \"" + kick.getMessage() + "\"");
-        // This method is called whenever a Kick-Packet is sent from the Minecraft
-        // Server to the Minecraft Client.
+        // This method is called whenever a Kick-Packet is sent from the Minecraft Server to the Minecraft Client.
         
         // check if the server is ignored
         if (!instance.isIgnoredServer(server.getInfo())) {

@@ -80,7 +80,7 @@ public class Reconnect extends Plugin implements Listener {
         if (tryReloadConfig(getLogger())) {
             // set bridges in the event of this plugin being loaded by a plugin manager
             for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
-                setBridgeOf((UserConnection) proxiedPlayer);
+                setDownstreamBridgeOf((UserConnection) proxiedPlayer);
             }
         }
         
@@ -287,7 +287,7 @@ public class Reconnect extends Plugin implements Listener {
         // ServerSwitchEvent is called just right after the Downstream Bridge has been
         // initialized, so we simply can
         // instantiate here our own implementation of the DownstreamBridge
-        setBridgeOf((UserConnection) event.getPlayer());
+        setDownstreamBridgeOf((UserConnection) event.getPlayer());
         
         // cancel reconnecter instantly if the user switches servers
         Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
@@ -300,7 +300,7 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    public void setBridgeOf(UserConnection user) {
+    public void setDownstreamBridgeOf(UserConnection user) {
         ServerConnection con = user.getServer();
         
         ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, con);
@@ -529,7 +529,7 @@ public class Reconnect extends Plugin implements Listener {
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
-            return shutdownMessage.equals(message);
+            return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
     
