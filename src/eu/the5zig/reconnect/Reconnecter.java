@@ -232,9 +232,6 @@ public class Reconnecter {
             // add pending connect
             user.getPendingConnects().add(targetInfo);
             
-            // clear plugin messages
-            user.getPendingConnection().relayMessage(null);
-            
             currentServer.setObsolete(true);
             
             // Create channel initializer.
