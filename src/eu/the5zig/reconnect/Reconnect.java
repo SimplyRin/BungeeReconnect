@@ -61,7 +61,7 @@ public class Reconnect extends Plugin implements Listener {
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
     
     private List<String> serversList = new ArrayList<>();
-    private boolean whitelist = true;
+    private boolean serversListIsWhitelist = true;
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
@@ -244,7 +244,7 @@ public class Reconnect extends Plugin implements Listener {
                 2000 + configuration.getInt("connect-finalization-timeout"));
         
         // obtain ignored/allowed servers from config
-        whitelist = resolveMode(configuration.getString("servers.mode"));
+        serversListIsWhitelist = resolveMode(configuration.getString("servers.mode"));
         serversList = configuration.getStringList("servers.list");
         
         // obtain shutdown values from config
@@ -322,7 +322,7 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public boolean isIgnoredServer(ServerInfo server) {
-        return whitelist ^ serversList.contains(server.getName());
+        return serversListIsWhitelist ^ serversList.contains(server.getName());
     }
     
     /**
