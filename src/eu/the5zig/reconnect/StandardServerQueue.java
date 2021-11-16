@@ -8,9 +8,9 @@ public class StandardServerQueue implements ServerQueue {
     
     private final QueueManager parent;
     
-    private final ReentrantLock lock = new ReentrantLock(true);
+    private final ReentrantLock queueLock = new ReentrantLock(true);
     
-    private volatile AtomicBoolean wait = new AtomicBoolean(false);
+    private volatile AtomicBoolean conWait = new AtomicBoolean(false);
     
     private volatile long lastTime = 0;
     
@@ -22,7 +22,7 @@ public class StandardServerQueue implements ServerQueue {
     public synchronized Holder queue(long timeout, TimeUnit unit) {
         
         try {
-            if (lock.tryLock(timeout, unit)) {
+            if (queueLock.tryLock(timeout, unit)) {
                 long ctime = System.nanoTime();
                 
                 long sleepTime = Math.max(parent.instance().getNanosBetweenConnects() - (ctime - lastTime), 1);
@@ -36,24 +36,24 @@ public class StandardServerQueue implements ServerQueue {
                 ctime = System.nanoTime();
                 long ftime = parent.instance().getConnctFinalizationNanos();
                 
-                while (wait.get()) {
-                    synchronized (wait) {
-                        wait.wait(Math.max(TimeUnit.NANOSECONDS.toMillis(ftime - (System.nanoTime() - ctime)), 1));
+                while (conWait.get()) {
+                    synchronized (conWait) {
+                        conWait.wait(Math.max(TimeUnit.NANOSECONDS.toMillis(ftime - (System.nanoTime() - ctime)), 1));
                     }
                     if (lastTime + ftime < System.nanoTime()) {
-                        wait = new AtomicBoolean(true);
+                        conWait = new AtomicBoolean(true);
                         break;
                     }
                 }
                 
-                wait = new AtomicBoolean(true);
-                return new Holder(this, wait);
+                conWait = new AtomicBoolean(true);
+                return new Holder(this, conWait);
             }
         } catch (InterruptedException e) {
             return new Holder(this, new AtomicBoolean());
         } finally {
             lastTime = System.nanoTime();
-            lock.unlock();
+            queueLock.unlock();
         }
         return null;
     }
