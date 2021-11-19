@@ -15,7 +15,7 @@ public class PlayerQueueEvent extends Event implements Cancellable {
     private boolean cancelled = false;
     
     private ServerInfo server;
-    private ServerQueue defaultQueue;
+    private final ServerQueue defaultQueue;
     private ServerQueue currentQueue;
     private ProxiedPlayer whom;
     private long queueTimeout;
