@@ -13,7 +13,7 @@ public class Holder {
         this.wait = wait;
     }
     
-    public void unlock() {
+    public synchronized void unlock() {
         if (wait != null) {
             synchronized (wait) {
                 wait.set(false);
