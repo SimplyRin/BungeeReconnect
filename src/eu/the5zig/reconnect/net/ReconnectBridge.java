@@ -60,16 +60,14 @@ public class ReconnectBridge extends DownstreamBridge {
         // check if the server is ignored
         if (!instance.isIgnoredServer(server.getInfo())) {
             
-            String kickMessage = ChatColor
-                    .stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage()))); // needs to
-            // be parsed
-            // like
-            // that...
+            // needs to be parsed like that...
+            String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage())));
+            
             instance.debug(this, "kick message stripped for " + user.getName() + " on server "
                     + server.getInfo().getName() + " : \"" + kickMessage + "\"");
             
             // Check if kickMessage is a restart message
-            if (instance.isShutdownKick(kickMessage)) {
+            if (instance.isReconnectKick(kickMessage)) {
                 // As always, we fire a ServerReconnectEvent and give plugins the possibility to
                 // cancel server reconnecting.
                 if (instance.fireServerReconnectEvent(user, server)) {

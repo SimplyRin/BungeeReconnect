@@ -114,11 +114,11 @@ public class Reconnecter {
                                 && !(future.isDone() && !(future.isSuccess() && future.channel().isActive()))
                                 && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > System.nanoTime()
                                 ) {
-                            reconnect.debug(Reconnecter.this, "channel future failed");
                             retry();
                             return;
                         }
                         
+                        reconnect.debug(Reconnecter.this, "channel future failed");
                         dropHolder();
                         tryCloseChannel(future);
                     }
@@ -191,6 +191,11 @@ public class Reconnecter {
         // as keepAlive Packets)
         startSendingUpdates();
         // invoke the "run" runnable after the delay before trying
+        
+        // set dimension change to true and dimension to null
+        user.setDimensionChange(true);
+        user.setDimension(null);
+        
         retry(reconnect.getDelayBeforeTrying());
     }
     
@@ -248,6 +253,10 @@ public class Reconnecter {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
             
+            // set dimension change to true and dimension to null
+            user.setDimensionChange(true);
+            user.setDimension(null);
+            
             // connect
             reconnect.debug(Reconnecter.this, "connecting...");
             ChannelFuture future = bootstrap.connect();
@@ -255,6 +264,7 @@ public class Reconnecter {
             try {
                 // wait for the future to finish or fail for no longer then reconnect timeout
                 future.get(reconnect.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+                
                 synchronized (channelSync) {
                     if (isCancelled) {
                         reconnect.debug(Reconnecter.this, "post-connect cancelled check returned true");
@@ -648,7 +658,7 @@ public class Reconnecter {
                 + updateRate + ", stayTime=" + titleStayTime + ", updatesTaskNull?=" + (updatesTask == null) + ", updates="
                 + updatesEnabled + ", cancelled=" + isCancelled + ", running=" + isRunning + ", channelFuture=" + channelFuture
                 + ", lastFutureTime=" + lastChannelTime + ", holder=" + holder + ", statusCheck()=" + statusCheck()
-                + " (dimIsNull?=" + (user.getDimension() == null) + ")]";
+                + " (dimensionNull?=" + (user.getDimension() == null) + ")]";
         
     }
     

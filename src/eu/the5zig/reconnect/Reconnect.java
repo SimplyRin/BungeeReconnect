@@ -31,9 +31,11 @@ import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
+import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
+import net.md_5.bungee.api.event.ServerKickEvent;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -282,14 +284,15 @@ public class Reconnect extends Plugin implements Listener {
     
     @EventHandler()
     public void onServerSwitch(ServerSwitchEvent event) {
+        UserConnection ucon = (UserConnection) event.getPlayer();
         // We need to override the Downstream class of each user so that we can override
         // the disconnect methods of it.
         // ServerSwitchEvent is called just right after the Downstream Bridge has been
         // initialized, so we simply can
         // instantiate here our own implementation of the DownstreamBridge
-        setDownstreamBridgeOf((UserConnection) event.getPlayer());
+        setDownstreamBridgeOf(ucon);
         
-        // cancel reconnecter instantly if the user switches servers
+        // checks to see if we should cancel the reconnecter if it exists
         Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
         if (re != null && !re.isSameInfo()) {
             re.cancel(true);
@@ -300,11 +303,33 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
+    @EventHandler()
+    public void onUserKick(ServerKickEvent e) {
+        // needs to be parsed like that...
+        String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(e.getKickReasonComponent()));
+        if (isReconnectKick(kickMessage)) {
+            UserConnection ucon = (UserConnection) e.getPlayer();
+            
+            ucon.getServer().setObsolete(true);
+            setDownstreamBridgeOf(ucon);
+            e.setCancelled(true);
+            
+            // must be done as canceling the event will redirect to cancel server
+            e.setCancelServer(ucon.getServer().getInfo());
+            
+            // reconnect them
+            if (!isReconnecting(ucon.getUniqueId())) {
+                reconnectIfOnline(ucon, ucon.getServer());
+            }
+        }
+    }
+    
     public void setDownstreamBridgeOf(UserConnection user) {
-        ServerConnection con = user.getServer();
-        
-        ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, con);
-        con.getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
+        user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
+    }
+    
+    public ReconnectBridge newReconnectBridge(UserConnection user) {
+        return new ReconnectBridge(this, getProxy(), user, user.getServer());
     }
     
     private boolean resolveMode(String mode) {
@@ -525,12 +550,21 @@ public class Reconnect extends Plugin implements Listener {
         return shutdownPattern != null;
     }
     
-    public boolean isShutdownKick(String message) {
-        if (shutdownPattern != null) {
+    public boolean isReconnectKick(String message) {
+        if (
+                checkTrans(message, "lost_connection") //proxy lost connection...
+                || checkTrans(message, "server_went_down") //The server you were previously on went...
+                ) {
+            return true;
+        } else if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
+    }
+    
+    private boolean checkTrans(String m, String trans) {
+        return bungee.getTranslation(trans).equals(m);
     }
     
     public String getReconnectingSubtitle() {
