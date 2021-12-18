@@ -22,10 +22,15 @@ public class ReconnectServerConnector extends ServerConnector {
     final Reconnect instance;
     final Reconnecter connecter;
     
+    final UserConnection ucon;
+    final BungeeServerInfo target;
+    
     public ReconnectServerConnector(Reconnecter connecter, ProxyServer bungee, UserConnection user, BungeeServerInfo target) {
         super(bungee, user, target);
         this.connecter = connecter;
         this.instance = connecter.getReconnect();
+        this.ucon = user;
+        this.target = target;
     }
     
     @Override
@@ -55,6 +60,11 @@ public class ReconnectServerConnector extends ServerConnector {
         instance.debug("HANDLE_LOGIN_SUCCESS");
         connecter.setJoinFlag(true);
         super.handle(loginSuccess);
+    }
+    
+    @Override
+    public String toString() {
+        return "[" + this.ucon.getName() + "] <-> ReconnectServerConnector [" + this.target.getName() + "]";
     }
     
 }
