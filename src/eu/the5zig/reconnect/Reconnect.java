@@ -311,7 +311,7 @@ public class Reconnect extends Plugin implements Listener {
             UserConnection ucon = (UserConnection) e.getPlayer();
             
             ucon.getServer().setObsolete(true);
-            setDownstreamBridgeOf(ucon);
+            
             e.setCancelled(true);
             
             // must be done as canceling the event will redirect to cancel server
@@ -325,7 +325,10 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public void setDownstreamBridgeOf(UserConnection user) {
-        user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
+        HandlerBoss boss = user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class);
+        if (boss != null) {
+            boss.setHandler(newReconnectBridge(user));
+        }
     }
     
     public ReconnectBridge newReconnectBridge(UserConnection user) {
