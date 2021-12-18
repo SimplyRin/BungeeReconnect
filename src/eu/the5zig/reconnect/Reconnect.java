@@ -307,7 +307,9 @@ public class Reconnect extends Plugin implements Listener {
     public void onUserKick(ServerKickEvent e) {
         // needs to be parsed like that...
         String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(e.getKickReasonComponent()));
+        debug("onServerKick called with :" +  kickMessage);
         if (isReconnectKick(kickMessage)) {
+            debug("kick message matched");
             UserConnection ucon = (UserConnection) e.getPlayer();
             
             ucon.getServer().setObsolete(true);
