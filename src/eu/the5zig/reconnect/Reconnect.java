@@ -108,19 +108,28 @@ public class Reconnect extends Plugin implements Listener {
     
     public void debug(Object o, String m, Throwable t) {
         if (debug) {
-            getLogger().log(Level.FINE, o + " " + m, t);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m, t);
         }
     }
     
     public void debug(Object o, String m) {
         if (debug) {
-            getLogger().log(Level.FINE, o + " " + m);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m);
         }
     }
     
     public void debug(String m) {
         if (debug) {
-            getLogger().log(Level.FINE, m);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            String clazzName = null;
+            try {
+                clazzName = Class.forName(element.getClassName()).getSimpleName();
+            } catch (ClassNotFoundException e) {
+                clazzName = element.getClassName();
+            }
+            getLogger().log(Level.FINE, clazzName + ":" + element.getLineNumber() + " " + m);
         }
     }
     

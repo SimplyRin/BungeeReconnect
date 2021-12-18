@@ -64,7 +64,7 @@ public class Reconnecter {
     private final Object channelSync = new Object();
     
     // last time a try was attempted
-    private volatile long lastChannelTime = 0;
+    private volatile long lastChannelTime = System.nanoTime();
     
     // The current holder if any
     private volatile Holder holder = null;
@@ -91,6 +91,7 @@ public class Reconnecter {
     }
     
     private final Runnable run = new Runnable() {
+        long ctime = System.nanoTime();
         @Override
         public void run() {
             reconnect.debug(Reconnecter.this, "running");
@@ -115,7 +116,7 @@ public class Reconnecter {
                         // timed out
                         if (!future.isCancelled()
                                 && !(future.isDone() && !(future.isSuccess() && future.channel().isActive()))
-                                && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > System.nanoTime()
+                                && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > ctime
                                 ) {
                             retry();
                             return;
@@ -126,8 +127,13 @@ public class Reconnecter {
                         tryCloseChannel(future);
                     }
                     
-                    // Attempt a reconnect
-                    tryReconnect();
+                    long nextFutureTime = lastChannelTime + 1_000_000_000L + reconnect.getNanosBetweenConnects();
+                    if (nextFutureTime > ctime) {
+                        // Attempt a reconnect
+                        tryReconnect();
+                    } else {
+                        retry(Math.max(1, TimeUnit.NANOSECONDS.toMillis(nextFutureTime - ctime)));
+                    }
                     return;
                 }
             } else {
@@ -669,7 +675,7 @@ public class Reconnecter {
                 + updateRate + ", stayTime=" + titleStayTime + ", updatesTaskNull?=" + (updatesTask == null) + ", updates="
                 + updatesEnabled + ", cancelled=" + isCancelled + ", running=" + isRunning + ", channelFuture=" + channelFuture
                 + ", lastFutureTime=" + lastChannelTime + ", holder=" + holder + ", statusCheck()=" + statusCheck()
-                + " (dimensionNull?=" + (user.getDimension() == null) + ")]";
+                + " joinFlag=" + joinFlag + "]";
         
     }
     
