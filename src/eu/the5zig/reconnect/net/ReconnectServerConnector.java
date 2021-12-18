@@ -8,11 +8,13 @@ import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.connection.CancelSendSignal;
 import net.md_5.bungee.protocol.packet.Kick;
+import net.md_5.bungee.protocol.packet.LoginSuccess;
 
 /**
  * This is my implementation of {@link ServerConnector} used by {@link ReconnectChannelInitializer} when reconnecting someone.
  * <br>
  * This is responsible for handling kicks and other things that might disconnect the user while reconnecting.
+ * Additionally sets the {@link Reconnecter#setJoinFlag(boolean)} when login success occurs.
  * @author Tau
  */
 public class ReconnectServerConnector extends ServerConnector {
@@ -46,6 +48,13 @@ public class ReconnectServerConnector extends ServerConnector {
         } else {
             throw CancelSendSignal.INSTANCE;
         }
+    }
+    
+    @Override
+    public void handle(LoginSuccess loginSuccess) throws Exception {
+        instance.debug("HANDLE_LOGIN_SUCCESS");
+        connecter.setJoinFlag(true);
+        super.handle(loginSuccess);
     }
     
 }
