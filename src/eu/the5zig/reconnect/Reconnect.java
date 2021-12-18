@@ -16,7 +16,6 @@ import java.util.logging.Filter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -32,11 +31,9 @@ import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
-import net.md_5.bungee.api.event.ServerKickEvent;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
@@ -68,7 +65,7 @@ public class Reconnect extends Plugin implements Listener {
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
-    private Pattern kickedWhilstConnectingRegex = null;
+    //private Pattern kickedWhilstConnectingRegex = null;
     
     /**
      * A HashMap containing all reconnect tasks.
@@ -155,8 +152,7 @@ public class Reconnect extends Plugin implements Listener {
             });
         }
         
-        kickedWhilstConnectingRegex = Pattern.compile(Pattern.quote(ChatColor.stripColor(bungee.getTranslation("connect_kick")))
-                .replace("{0}", "\\E.*\\Q").replace("{1}", "\\E(.*)\\Q"));
+        //kickedWhilstConnectingRegex = Pattern.compile(Pattern.quote(ChatColor.stripColor(bungee.getTranslation("connect_kick"))).replace("{0}", "\\E.*\\Q").replace("{1}", "\\E(.*)\\Q"));
         
         try {
             loadConfig(log);
@@ -289,6 +285,7 @@ public class Reconnect extends Plugin implements Listener {
     
     @EventHandler()
     public void onServerSwitch(ServerSwitchEvent event) {
+        debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
         UserConnection ucon = (UserConnection) event.getPlayer();
         // We need to override the Downstream class of each user so that we can override
         // the disconnect methods of it.
@@ -308,30 +305,7 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    @EventHandler()
-    public void onUserKick(ServerKickEvent e) {
-        // needs to be parsed like that...
-        String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(e.getKickReasonComponent()));
-        debug("onServerKick called with :" +  kickMessage);
-        if (isReconnectKick(kickMessage)) {
-            debug("kick message matched");
-            UserConnection ucon = (UserConnection) e.getPlayer();
-            
-            ucon.getServer().setObsolete(true);
-            
-            e.setCancelled(true);
-            
-            // must be done as canceling the event will redirect to cancel server
-            e.setCancelServer(ucon.getServer().getInfo());
-            
-            // reconnect them
-            if (!isReconnecting(ucon.getUniqueId())) {
-                reconnectIfOnline(ucon, ucon.getServer());
-            }
-        }
-    }
-    
-    public void setDownstreamBridgeOf(UserConnection user) {
+    public synchronized void setDownstreamBridgeOf(UserConnection user) {
         user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
     }
     
@@ -558,7 +532,7 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public boolean isReconnectKick(String message) {
-        if (
+        /*if (
                 checkTrans(message, "lost_connection") //proxy lost connection...
                 || checkTrans(message, "server_went_down") //The server you were previously on went...
                 ) {
@@ -570,7 +544,7 @@ public class Reconnect extends Plugin implements Listener {
                 // if it does extract the original message in {1}
                 message = matcher.group(1);
             }
-        }
+        }*/
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
@@ -578,9 +552,9 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    private boolean checkTrans(String m, String trans) {
+    /*private boolean checkTrans(String m, String trans) {
         return bungee.getTranslation(trans).equals(m);
-    }
+    }*/
     
     public String getReconnectingSubtitle() {
         return reconnectingSubtitle;

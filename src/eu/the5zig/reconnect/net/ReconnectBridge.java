@@ -1,6 +1,7 @@
 package eu.the5zig.reconnect.net;
 
 import eu.the5zig.reconnect.Reconnect;
+import eu.the5zig.reconnect.Reconnecter;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -9,7 +10,11 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.connection.CancelSendSignal;
 import net.md_5.bungee.connection.DownstreamBridge;
+import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.packet.Kick;
+import net.md_5.bungee.protocol.packet.PlayerListItem;
+import net.md_5.bungee.protocol.packet.PlayerListItem.Action;
+import net.md_5.bungee.protocol.packet.PlayerListItem.Item;
 
 /**
  * Our own implementation of the BungeeCord DownstreamBridge.<br>
@@ -31,7 +36,7 @@ public class ReconnectBridge extends DownstreamBridge {
     
     @Override
     public void exception(Throwable t) throws Exception {
-        instance.debug(this, "exception thrown on this bridge for user \"" + user.getName() + "\"", t);
+        instance.debug(this, "HANDLE_EXCEPTION");
         // Usually, BungeeCord would reconnect the Player to the fallback server or kick him if no
         // Fallback Server is available.
         // when an Exception between the BungeeCord and the Minecraft Server
@@ -53,7 +58,7 @@ public class ReconnectBridge extends DownstreamBridge {
     
     @Override
     public void handle(Kick kick) throws Exception {
-        instance.debug(this, "kick for " + user.getName() + " on server " + server.getInfo().getName()
+        instance.debug(this, "HANDLE_KICK for " + user.getName() + " on server " + server.getInfo().getName()
                 + " with message \"" + kick.getMessage() + "\"");
         // This method is called whenever a Kick-Packet is sent from the Minecraft Server to the Minecraft Client.
         
@@ -88,6 +93,36 @@ public class ReconnectBridge extends DownstreamBridge {
             instance.debug(this, "not handling because it's an ignored server.");
         } // otherwise handle it normally
         super.handle(kick);
+    }
+    
+    @Override
+    public void handle(PlayerListItem playerListItem) throws Exception {
+        instance.debug("HANDLE_PLAYERADD");
+        if (playerListItem.getAction() == Action.ADD_PLAYER && playerListItem.getItems() != null) {
+            for (Item item : playerListItem.getItems()) {
+                if (item != null && user.getUniqueId().equals(item.getUuid())) {
+                    Reconnecter reconnecter = instance.getReconnecterFor(user.getUniqueId());
+                    if (reconnecter != null && reconnecter.getServer().getInfo().equals(server.getInfo())) {
+                        reconnecter.setJoinFlag(true);
+                    }
+                    break;
+                }
+            }
+            
+        }
+        super.handle(playerListItem);
+    }
+    
+    @Override
+    public void disconnected(ChannelWrapper channel) throws Exception {
+        instance.debug("DISCONNECTED");
+        Reconnecter reconnecter = instance.getReconnecterFor(user.getUniqueId());
+        if (reconnecter != null) {
+            reconnecter.setJoinFlag(false);
+        } else {
+            instance.debug("  NOT_CURRENTLY_RECONNECTING");
+            super.disconnected(channel);
+        }
     }
     
 }

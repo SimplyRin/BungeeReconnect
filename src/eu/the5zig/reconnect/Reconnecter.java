@@ -69,6 +69,9 @@ public class Reconnecter {
     // The current holder if any
     private volatile Holder holder = null;
     
+    // true once the user has been flagged as "joined"
+    private volatile boolean joinFlag = false;
+    
     /**
      * 
      * @param instance The instance of reconnect
@@ -140,7 +143,7 @@ public class Reconnecter {
      * @return true if we should continue
      */
     public boolean statusCheck() {
-        return isOnline() && (isSameServer() || (isSameInfo() && user.getDimension() == null));
+        return isOnline() && (isSameServer() || (isSameInfo() && !joinFlag));
     }
     
     /**
@@ -289,6 +292,14 @@ public class Reconnecter {
         }
         // Call next retry to check the connection state etc irrelevant of the outcome of the future.
         retry();
+    }
+    
+    /**
+     * Sets the joined flag
+     * @param joined if they have joined
+     */
+    public void setJoinFlag(boolean joined) {
+        this.joinFlag = joined;
     }
     
     /**
