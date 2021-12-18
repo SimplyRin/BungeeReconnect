@@ -16,6 +16,7 @@ import java.util.logging.Filter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -67,6 +68,7 @@ public class Reconnect extends Plugin implements Listener {
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
+    private Pattern kickedWhilstConnectingRegex = null;
     
     /**
      * A HashMap containing all reconnect tasks.
@@ -152,6 +154,9 @@ public class Reconnect extends Plugin implements Listener {
                 cancelReconnecterFor(uid);
             });
         }
+        
+        kickedWhilstConnectingRegex = Pattern.compile(ChatColor.stripColor(bungee.getTranslation("connect_kick"))
+                .replace("{0}", ".*").replace("{1}", "(.*)"));
         
         try {
             loadConfig(log);
@@ -558,7 +563,15 @@ public class Reconnect extends Plugin implements Listener {
                 || checkTrans(message, "server_went_down") //The server you were previously on went...
                 ) {
             return true;
-        } else if (shutdownPattern != null) {
+        } else if (message != null) {
+            Matcher matcher = kickedWhilstConnectingRegex.matcher(message);
+            // check if the kick message matches the kicked whilst connecting message
+            if (matcher.matches()) {
+                // if it does extract the original message in {1}
+                message = matcher.group(1);
+            }
+        }
+        if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
