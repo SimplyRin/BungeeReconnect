@@ -325,10 +325,7 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public void setDownstreamBridgeOf(UserConnection user) {
-        HandlerBoss boss = user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class);
-        if (boss != null) {
-            boss.setHandler(newReconnectBridge(user));
-        }
+        user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
     }
     
     public ReconnectBridge newReconnectBridge(UserConnection user) {
