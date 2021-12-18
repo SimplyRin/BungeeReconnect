@@ -12,22 +12,19 @@ import net.md_5.bungee.connection.CancelSendSignal;
 import net.md_5.bungee.connection.DownstreamBridge;
 import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.packet.Kick;
-import net.md_5.bungee.protocol.packet.PlayerListItem;
-import net.md_5.bungee.protocol.packet.PlayerListItem.Action;
-import net.md_5.bungee.protocol.packet.PlayerListItem.Item;
 
 /**
  * Our own implementation of the BungeeCord DownstreamBridge.<br>
  * Inside here, all packets going from the Minecraft Server to the Minecraft
  * Client are being handled.
  */
-public class ReconnectBridge extends DownstreamBridge {
+public class ReconnectDownstreamBridge extends DownstreamBridge {
     
     private final Reconnect instance;
     private final UserConnection user;
     private final ServerConnection server;
     
-    public ReconnectBridge(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
+    public ReconnectDownstreamBridge(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
         super(bungee, user, server);
         this.instance = instance;
         this.user = user;
@@ -96,31 +93,13 @@ public class ReconnectBridge extends DownstreamBridge {
     }
     
     @Override
-    public void handle(PlayerListItem playerListItem) throws Exception {
-        instance.debug("HANDLE_PLAYERADD");
-        if (playerListItem.getAction() == Action.ADD_PLAYER && playerListItem.getItems() != null) {
-            for (Item item : playerListItem.getItems()) {
-                if (item != null && user.getUniqueId().equals(item.getUuid())) {
-                    Reconnecter reconnecter = instance.getReconnecterFor(user.getUniqueId());
-                    if (reconnecter != null && reconnecter.getServer().getInfo().equals(server.getInfo())) {
-                        reconnecter.setJoinFlag(true);
-                    }
-                    break;
-                }
-            }
-            
-        }
-        super.handle(playerListItem);
-    }
-    
-    @Override
     public void disconnected(ChannelWrapper channel) throws Exception {
-        instance.debug("DISCONNECTED");
+        instance.debug("HANDLE_DISCONNECTED");
         Reconnecter reconnecter = instance.getReconnecterFor(user.getUniqueId());
         if (reconnecter != null) {
             reconnecter.setJoinFlag(false);
         } else {
-            instance.debug("  NOT_CURRENTLY_RECONNECTING");
+            instance.debug("  not currently reconnecting, handle normally.");
             super.disconnected(channel);
         }
     }

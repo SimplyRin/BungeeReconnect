@@ -25,7 +25,7 @@ import com.google.common.io.Files;
 
 import eu.the5zig.reconnect.api.ServerReconnectEvent;
 import eu.the5zig.reconnect.command.CommandReconnect;
-import eu.the5zig.reconnect.net.ReconnectBridge;
+import eu.the5zig.reconnect.net.ReconnectDownstreamBridge;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
@@ -318,8 +318,8 @@ public class Reconnect extends Plugin implements Listener {
         user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
     }
     
-    public ReconnectBridge newReconnectBridge(UserConnection user) {
-        return new ReconnectBridge(this, getProxy(), user, user.getServer());
+    public ReconnectDownstreamBridge newReconnectBridge(UserConnection user) {
+        return new ReconnectDownstreamBridge(this, getProxy(), user, user.getServer());
     }
     
     private boolean resolveMode(String mode) {

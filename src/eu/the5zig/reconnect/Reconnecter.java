@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import eu.the5zig.reconnect.net.BasicChannelInitializer;
+import eu.the5zig.reconnect.net.ReconnectChannelInitializer;
 import eu.the5zig.reconnect.util.MyPipelineUtils;
 import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
@@ -94,8 +94,8 @@ public class Reconnecter {
         long ctime = System.nanoTime();
         @Override
         public void run() {
-            reconnect.debug(Reconnecter.this, "running");
             if (isCancelled) {
+                reconnect.debug(Reconnecter.this, "cancelled check is true");
                 return;
             }
             final ChannelFuture future = channelFuture;
@@ -104,16 +104,15 @@ public class Reconnecter {
             if (statusCheck()) {
                 // check if timeout has expired
                 if (hasTimedOut()) {
+                    reconnect.debug(Reconnecter.this, "reconnecter has exceeded max reconnect time");
                     // Proceed with plan B :(
                     failReconnect();
                     return;
                 } else {
-                    
                     // Check if the future is null
                     if (future != null) {
-                        
-                        // check if the channel has been canceled or has completed but failed or has
-                        // timed out
+                        reconnect.debug(Reconnecter.this, "channelFuture check");
+                        // check if the channel has been canceled or has completed but failed or has timed out
                         if (!future.isCancelled()
                                 && !(future.isDone() && !(future.isSuccess() && future.channel().isActive()))
                                 && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > ctime
@@ -189,8 +188,7 @@ public class Reconnecter {
         if (isRunning && !isCancelled) {
             return;
         }
-        log.fine("starting reconnecter for \"" + user.getName() + "\" will be waiting for: "
-                + reconnect.getDelayBeforeTrying());
+        reconnect.debug(this, "start invoked " + this.toString());
         isRunning = true;
         startTime = System.nanoTime();
         
@@ -209,11 +207,19 @@ public class Reconnecter {
     }
     
     /**
+     * Gets the reconnect instance
+     * @return the reconnect instance
+     */
+    public Reconnect getReconnect() {
+        return reconnect;
+    }
+    
+    /**
      * Called when a retry should occur
      */
     private void retry() {
-        // invoke the "run" runnable after 100 msec
-        retry(100);
+        // invoke the "run" runnable after 250 msec
+        retry(250);
     }
     
     /**
@@ -249,7 +255,7 @@ public class Reconnecter {
             currentServer.setObsolete(true);
             
             // Create channel initializer.
-            ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, targetInfo);
+            ChannelInitializer<Channel> initializer = new ReconnectChannelInitializer(this, bungee, user, targetInfo);
             
             // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
             Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
@@ -298,6 +304,14 @@ public class Reconnecter {
         }
         // Call next retry to check the connection state etc irrelevant of the outcome of the future.
         retry();
+    }
+    
+    /**
+     * Gets the joined flag
+     * @return if they have joined
+     */
+    public boolean getJoinFlag() {
+        return joinFlag;
     }
     
     /**
@@ -643,12 +657,20 @@ public class Reconnecter {
     }
     
     /**
+     * Checks if this reconnecter is cancelled
+     * @return true if cancelled false otherwise
+     */
+    public boolean isCancelled() {
+        return isCancelled;
+    }
+    
+    /**
      * Cancels this reconnecter
      * 
      * @param force Should we forcefully cancel the channel even if it's active
      */
     public synchronized void cancel(boolean force) {
-        reconnect.debug(Reconnecter.this, "cancel invoked. " + force);
+        reconnect.debug(Reconnecter.this, "cancel invoked(force=" + force + ") : " + toString());
         
         isCancelled = true;
         isRunning = false;
