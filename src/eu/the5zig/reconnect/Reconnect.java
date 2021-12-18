@@ -155,8 +155,8 @@ public class Reconnect extends Plugin implements Listener {
             });
         }
         
-        kickedWhilstConnectingRegex = Pattern.compile(ChatColor.stripColor(bungee.getTranslation("connect_kick"))
-                .replace("{0}", ".*").replace("{1}", "(.*)"));
+        kickedWhilstConnectingRegex = Pattern.compile(Pattern.quote(ChatColor.stripColor(bungee.getTranslation("connect_kick")))
+                .replace("{0}", "\\E.*\\Q").replace("{1}", "\\E(.*)\\Q"));
         
         try {
             loadConfig(log);
