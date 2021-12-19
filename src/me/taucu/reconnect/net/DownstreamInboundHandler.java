@@ -1,5 +1,7 @@
 package me.taucu.reconnect.net;
 
+import java.util.logging.Level;
+
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -8,6 +10,7 @@ import me.taucu.reconnect.Reconnect;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.netty.ChannelWrapper;
@@ -80,6 +83,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     startedReconnecting = true;
                     server.setObsolete(true);
                     ch.markClosed();
+                    log("lost connection");
                     // return so fireChannelInactive isn't called
                     return;
                 }
@@ -110,6 +114,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         
                         // check if kickMessage is a restart message
                         if (instance.isReconnectKick(kickMessage)) {
+                            log("matched kick message: " + kickMessage);
                             // reconnect if applicable & check if we will
                             if (instance.reconnectIfApplicable(ucon, server)) {
                                 // don't propagate this to the next handler
@@ -164,9 +169,10 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
             } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
-                instance.debug(this, "handling, reconnecting");
+                instance.debug(this, "reconnecting");
                 startedReconnecting = true;
                 server.setObsolete(true);
+                log("Exception caught: " + (yeet == null ? "null" : yeet.getLocalizedMessage()));
                 // return so fireExceptionCaught isn't called
                 return;
             }
@@ -175,6 +181,18 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
         if (!startedReconnecting) {
             ctx.fireExceptionCaught(yeet);
         }
+    }
+    
+    public void log(String msg) {
+        ProxyServer.getInstance().getLogger().info("[" + ucon.getName() + "] <-> ReconnectDownstreamHandler <-> [" + server.getInfo().getName() + "] " + msg);
+    }
+    
+    public void log(String msg, Throwable t) {
+        log(Level.WARNING, msg, t);
+    }
+    
+    public void log(Level level, String msg, Throwable t) {
+        ProxyServer.getInstance().getLogger().log(level, "[" + ucon.getName() + "] <-> ReconnectDownstreamHandler <-> [" + server.getInfo().getName() + "] " + msg, t);
     }
     
 }
