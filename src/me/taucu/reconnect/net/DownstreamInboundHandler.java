@@ -10,6 +10,7 @@ import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.chat.ComponentSerializer;
+import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.DefinedPacket;
 import net.md_5.bungee.protocol.PacketWrapper;
 import net.md_5.bungee.protocol.packet.Kick;
@@ -23,10 +24,16 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     private final ServerConnection server;
     
-    private volatile boolean isLegitimateInactive = true;
+    private final ChannelWrapper ch;
+    
+    private volatile boolean startedReconnecting = false;
     
     public static void attachHandlerTo(UserConnection ucon, Reconnect instance) {
         ChannelPipeline pipeline = ucon.getServer().getCh().getHandle().pipeline();
+        attachHandlerTo(pipeline, ucon, instance);
+    }
+    
+    public static void attachHandlerTo(ChannelPipeline pipeline, UserConnection ucon, Reconnect instance) {
         if (pipeline.get(NAME) != null) {
             pipeline.remove(NAME);
         }
@@ -38,6 +45,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
         this.ucon = ucon;
         
         this.server = ucon.getServer();
+        this.ch = ucon.getServer().getCh();
+        instance.debug(this, "<init>");
     }
     
     @Override
@@ -57,33 +66,40 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        instance.debug(this, "HANDLE_CHANNEL_INACTIVE");
-        if (ucon.getServer() == server && !isLegitimateInactive) {
-            instance.debug(this, "  handling, reconnect if applicable");
-            if (instance.reconnectIfApplicable(ucon, server)) {
-                server.setObsolete(true);
-                // return so fireChannelInactive isn't called
-                return;
+        instance.debug(this, "HANDLE_CHANNEL_INACTIVE sameServer=" + (ucon.getServer() == server));
+        if (startedReconnecting) {
+            instance.debug(this, "already reconnecting");
+            server.setObsolete(true);
+            ch.markClosed();
+            return;
+        } else {
+            if (ucon.getServer() == server) {
+                instance.debug(this, "handling, reconnect if applicable");
+                if (instance.reconnectIfApplicable(ucon, server)) {
+                    startedReconnecting = true;
+                    server.setObsolete(true);
+                    ch.markClosed();
+                    // return so fireChannelInactive isn't called
+                    return;
+                }
             }
+            ctx.fireChannelInactive();
         }
-        ctx.fireChannelInactive();
     }
     
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof PacketWrapper) {
-            PacketWrapper wrapper = (PacketWrapper) obj;
             boolean propagate = true;
+            PacketWrapper wrapper = (PacketWrapper) obj;
             try {
                 DefinedPacket packet = wrapper.packet;
                 if (packet instanceof Kick) {
                     Kick kick = (Kick) packet;
                     instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
-                    
-                    boolean legitimateInactive = true;
-                    
-                    // check if the server is ignored to save time
-                    if (!instance.isIgnoredServer(server.getInfo())) {
+                    if (startedReconnecting) {
+                        instance.debug(this, "already reconnecting");
+                    } else if (!instance.isIgnoredServer(server.getInfo())) {
                         
                         // needs to be parsed like that...
                         String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage())));
@@ -94,10 +110,10 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         if (instance.isReconnectKick(kickMessage)) {
                             // reconnect if applicable & check if we will
                             if (instance.reconnectIfApplicable(ucon, server)) {
-                                server.setObsolete(true);
                                 // don't propagate this to the next handler
                                 propagate = false;
-                                legitimateInactive = false;
+                                startedReconnecting = true;
+                                server.setObsolete(true);
                             } else {
                                 instance.debug(this, "not handling because reconnectIfApplicable returned false");
                             }
@@ -108,8 +124,6 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         instance.debug(this, "not handling because it's an ignored server.");
                     }
                     
-                    isLegitimateInactive = legitimateInactive;
-                    
                 }
             } finally {
                 if (propagate) {
@@ -118,6 +132,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     wrapper.trySingleRelease();
                 }
             }
+        } else {
+            ctx.fireChannelRead(obj);
         }
     }
     
@@ -140,14 +156,22 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) throws Exception {
         if (ctx.channel().isActive()) {
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
-            if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
-                instance.debug(this, "  handling, reconnecting");
-                server.setObsolete(true);
-                // return so fireExceptionCaught isn't called
-                return;
+            if (startedReconnecting) {
+                instance.debug(this, "already reconnecting");
+            } else {
+                if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
+                    instance.debug(this, "handling, reconnecting");
+                    startedReconnecting = true;
+                    server.setObsolete(true);
+                    // return so fireExceptionCaught isn't called
+                    return;
+                }
             }
         }
-        ctx.fireExceptionCaught(yeet);
+        
+        if (!startedReconnecting) {
+            ctx.fireExceptionCaught(yeet);
+        }
     }
     
 }
