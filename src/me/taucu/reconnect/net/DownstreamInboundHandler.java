@@ -26,6 +26,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     private final ChannelWrapper ch;
     
+    private volatile boolean legitimateKick = false;
     private volatile boolean startedReconnecting = false;
     
     public static void attachHandlerTo(UserConnection ucon, Reconnect instance) {
@@ -73,7 +74,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             ch.markClosed();
             return;
         } else {
-            if (ucon.getServer() == server) {
+            if (ucon.getServer() == server && !legitimateKick) {
                 instance.debug(this, "handling, reconnect if applicable");
                 if (instance.reconnectIfApplicable(ucon, server)) {
                     startedReconnecting = true;
@@ -90,16 +91,17 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
         if (obj instanceof PacketWrapper) {
-            boolean propagate = true;
+            boolean fireNextRead = true;
             PacketWrapper wrapper = (PacketWrapper) obj;
             try {
                 DefinedPacket packet = wrapper.packet;
                 if (packet instanceof Kick) {
                     Kick kick = (Kick) packet;
                     instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
-                    if (startedReconnecting) {
-                        instance.debug(this, "already reconnecting");
-                    } else if (!instance.isIgnoredServer(server.getInfo())) {
+                    
+                    boolean legitimageKick = true;
+                    
+                    if (!instance.isIgnoredServer(server.getInfo())) {
                         
                         // needs to be parsed like that...
                         String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage())));
@@ -111,7 +113,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                             // reconnect if applicable & check if we will
                             if (instance.reconnectIfApplicable(ucon, server)) {
                                 // don't propagate this to the next handler
-                                propagate = false;
+                                fireNextRead = false;
+                                legitimageKick = false;
                                 startedReconnecting = true;
                                 server.setObsolete(true);
                             } else {
@@ -124,9 +127,11 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         instance.debug(this, "not handling because it's an ignored server.");
                     }
                     
+                    this.legitimateKick = legitimageKick;
+                    
                 }
             } finally {
-                if (propagate) {
+                if (fireNextRead) {
                     ctx.fireChannelRead(obj);
                 } else {
                     wrapper.trySingleRelease();
