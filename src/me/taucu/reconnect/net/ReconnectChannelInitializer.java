@@ -1,8 +1,8 @@
-package eu.the5zig.reconnect.net;
+package me.taucu.reconnect.net;
 
-import eu.the5zig.reconnect.Reconnecter;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import me.taucu.reconnect.Reconnecter;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ProxyServer;

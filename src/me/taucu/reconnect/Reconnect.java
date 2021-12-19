@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -23,9 +23,9 @@ import com.google.common.base.Strings;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 
-import eu.the5zig.reconnect.api.ServerReconnectEvent;
-import eu.the5zig.reconnect.command.CommandReconnect;
-import eu.the5zig.reconnect.net.ReconnectDownstreamBridge;
+import me.taucu.reconnect.api.ServerReconnectEvent;
+import me.taucu.reconnect.command.CommandReconnect;
+import me.taucu.reconnect.net.DownstreamInboundHandler;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
@@ -41,7 +41,6 @@ import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
-import net.md_5.bungee.netty.HandlerBoss;
 
 public class Reconnect extends Plugin implements Listener {
     
@@ -65,7 +64,6 @@ public class Reconnect extends Plugin implements Listener {
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
-    //private Pattern kickedWhilstConnectingRegex = null;
     
     /**
      * A HashMap containing all reconnect tasks.
@@ -81,7 +79,7 @@ public class Reconnect extends Plugin implements Listener {
         if (tryReloadConfig(getLogger())) {
             // set bridges in the event of this plugin being loaded by a plugin manager
             for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
-                setDownstreamBridgeOf((UserConnection) proxiedPlayer);
+                DownstreamInboundHandler.attachHandlerTo((UserConnection) proxiedPlayer, this);
             }
         }
         
@@ -160,8 +158,6 @@ public class Reconnect extends Plugin implements Listener {
                 cancelReconnecterFor(uid);
             });
         }
-        
-        //kickedWhilstConnectingRegex = Pattern.compile(Pattern.quote(ChatColor.stripColor(bungee.getTranslation("connect_kick"))).replace("{0}", "\\E.*\\Q").replace("{1}", "\\E(.*)\\Q"));
         
         try {
             loadConfig(log);
@@ -296,12 +292,10 @@ public class Reconnect extends Plugin implements Listener {
     public void onServerSwitch(ServerSwitchEvent event) {
         debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
         UserConnection ucon = (UserConnection) event.getPlayer();
-        // We need to override the Downstream class of each user so that we can override
-        // the disconnect methods of it.
-        // ServerSwitchEvent is called just right after the Downstream Bridge has been
-        // initialized, so we simply can
-        // instantiate here our own implementation of the DownstreamBridge
-        setDownstreamBridgeOf(ucon);
+        
+        // we need to detect exceptions and kicks before bungeecord does,
+        // so we register a channel handler before HandlerBoss
+        DownstreamInboundHandler.attachHandlerTo(ucon, this);
         
         // checks to see if we should cancel the reconnecter if it exists
         Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
@@ -314,14 +308,6 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    public synchronized void setDownstreamBridgeOf(UserConnection user) {
-        user.getServer().getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(newReconnectBridge(user));
-    }
-    
-    public ReconnectDownstreamBridge newReconnectBridge(UserConnection user) {
-        return new ReconnectDownstreamBridge(this, getProxy(), user, user.getServer());
-    }
-    
     private boolean resolveMode(String mode) {
         switch (mode.toLowerCase()) {
         case "whitelist":
@@ -329,8 +315,7 @@ public class Reconnect extends Plugin implements Listener {
         case "blacklist":
             return false;
         default:
-            getLogger().warning(
-                    "servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
+            getLogger().warning("servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
             getLogger().warning("defaulting to blacklist.");
             return false;
         }
@@ -364,21 +349,45 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     /**
+     * Starts the reconnect process assuming all conditions are met
+     * <p>
+     * These conditions include but are not limited to:
+     * Server Whitelist/Blacklist, user being online
+     * @param ucon the UserConnection to reconnect
+     * @param server the Server they are going to reconnect to
+     * @return true if a reconnect will occur, false otherwise
+     */
+    public boolean reconnectIfApplicable(UserConnection ucon, ServerConnection server) {
+        if (!isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
+            return reconnectIfOnline(ucon, server);
+        } else {
+            debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
+        }
+        return false;
+    }
+    
+    /**
      * Reconnects a User to a Server, as long as the user is currently online. If he
      * isn't, his reconnect task (if he had one) will be canceled.
      *
      * @param user   The User that should be reconnected.
      * @param server The Server the User should be connected to.
+     * @return true if the user is online or was reconnecting to this server
      */
-    public void reconnectIfOnline(UserConnection user, ServerConnection server) {
-        getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
-        if (isUserOnline(user)) {
-            if (!isReconnecting(user.getUniqueId())) {
+    public boolean reconnectIfOnline(UserConnection user, ServerConnection server) {
+        synchronized (reconnecters) {
+            if (isUserOnline(user)) {
+                Reconnecter reconnecter = getReconnecterFor(user.getUniqueId());
+                if (reconnecter != null) {
+                    reconnecter.cancel();
+                }
+                getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
                 reconnect(user, server);
+                return true;
+            } else {
+                debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
             }
-        } else {
-            debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
-            cancelReconnecterFor(user.getUniqueId());
+            return false;
         }
     }
     
@@ -459,19 +468,6 @@ public class Reconnect extends Plugin implements Listener {
         user.sendMessage(bungee.getTranslation("server_went_down"));
     }
     
-    /**
-     * Checks whether a User has got a reconnect task.
-     *
-     * @param uuid The UniqueId of the User.
-     * @return true, if there is a task that tries to reconnect the User to a
-     *         server.
-     */
-    public boolean isReconnecting(UUID uuid) {
-        synchronized (reconnecters) {
-            return reconnecters.containsKey(uuid);
-        }
-    }
-    
     public String getReconnectingTitle() {
         return reconnectingTitle;
     }
@@ -541,29 +537,12 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public boolean isReconnectKick(String message) {
-        /*if (
-                checkTrans(message, "lost_connection") //proxy lost connection...
-                || checkTrans(message, "server_went_down") //The server you were previously on went...
-                ) {
-            return true;
-        } else if (message != null) {
-            Matcher matcher = kickedWhilstConnectingRegex.matcher(message);
-            // check if the kick message matches the kicked whilst connecting message
-            if (matcher.matches()) {
-                // if it does extract the original message in {1}
-                message = matcher.group(1);
-            }
-        }*/
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
-    
-    /*private boolean checkTrans(String m, String trans) {
-        return bungee.getTranslation(trans).equals(m);
-    }*/
     
     public String getReconnectingSubtitle() {
         return reconnectingSubtitle;

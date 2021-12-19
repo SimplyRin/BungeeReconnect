@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;

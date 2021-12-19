@@ -1,8 +1,8 @@
-package eu.the5zig.reconnect.util.scheduler;
+package me.taucu.reconnect.util.scheduler;
 
 import java.util.concurrent.TimeUnit;
 
-import eu.the5zig.reconnect.Reconnect;
+import me.taucu.reconnect.Reconnect;
 import net.md_5.bungee.api.ProxyServer;
 
 public class Sched {

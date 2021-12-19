@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect.util;
+package me.taucu.reconnect.util;
 
 import java.net.SocketAddress;
 

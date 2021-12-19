@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect.api;
+package me.taucu.reconnect.api;
 
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;

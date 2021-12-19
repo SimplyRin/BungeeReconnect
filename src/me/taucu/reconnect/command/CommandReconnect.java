@@ -1,12 +1,12 @@
-package eu.the5zig.reconnect.command;
+package me.taucu.reconnect.command;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import eu.the5zig.reconnect.Reconnect;
-import eu.the5zig.reconnect.util.CmdUtil;
+import me.taucu.reconnect.Reconnect;
+import me.taucu.reconnect.util.CmdUtil;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;

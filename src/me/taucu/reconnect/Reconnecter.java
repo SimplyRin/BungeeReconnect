@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -11,15 +11,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import eu.the5zig.reconnect.net.ReconnectChannelInitializer;
-import eu.the5zig.reconnect.util.MyPipelineUtils;
-import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.util.internal.PlatformDependent;
+import me.taucu.reconnect.net.ReconnectChannelInitializer;
+import me.taucu.reconnect.util.MyPipelineUtils;
+import me.taucu.reconnect.util.scheduler.Sched;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;

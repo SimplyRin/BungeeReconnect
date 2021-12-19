@@ -1,10 +1,10 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
 
-import eu.the5zig.reconnect.api.PlayerQueueEvent;
+import me.taucu.reconnect.api.PlayerQueueEvent;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.config.ServerInfo;
 

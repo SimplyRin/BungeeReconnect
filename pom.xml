@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>eu.the5zig</groupId>
+	<groupId>me.taucu</groupId>
 	<artifactId>reconnect</artifactId>
 	<version>1.4.0</version>
 	<packaging>jar</packaging>
 	<name>Bungee-Reconnect</name>
-	<description>A simple BungeeCord-Plugin that automatically tries to reconnect all players whenever a server restarts.</description>
+	<description>A bungeecord plugin that reconnects players to an underlying server if it goes down or they otherwise loose connection to it</description>
 	<build>
 		<defaultGoal>clean package</defaultGoal>
 		<finalName>${project.name}-${project.version}</finalName>

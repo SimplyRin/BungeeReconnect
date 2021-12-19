@@ -1,7 +1,7 @@
-package eu.the5zig.reconnect.net;
+package me.taucu.reconnect.net;
 
-import eu.the5zig.reconnect.Reconnect;
-import eu.the5zig.reconnect.Reconnecter;
+import me.taucu.reconnect.Reconnect;
+import me.taucu.reconnect.Reconnecter;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnector;
 import net.md_5.bungee.UserConnection;
