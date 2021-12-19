@@ -375,20 +375,14 @@ public class Reconnect extends Plugin implements Listener {
      * @return true if the user is online or was reconnecting to this server
      */
     public boolean reconnectIfOnline(UserConnection user, ServerConnection server) {
-        synchronized (reconnecters) {
-            if (isUserOnline(user)) {
-                Reconnecter reconnecter = getReconnecterFor(user.getUniqueId());
-                if (reconnecter != null) {
-                    reconnecter.cancel();
-                }
-                getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
-                reconnect(user, server);
-                return true;
-            } else {
-                debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
-            }
-            return false;
+        if (isUserOnline(user)) {
+            getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
+            reconnect(user, server);
+            return true;
+        } else {
+            debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
         }
+        return false;
     }
     
     /**
@@ -410,13 +404,16 @@ public class Reconnect extends Plugin implements Listener {
      * @param server The Server the User should be connected to.
      */
     private void reconnect(UserConnection user, ServerConnection server) {
+        Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
+        Reconnecter current = null;
         synchronized (reconnecters) {
-            Reconnecter reconnecter = reconnecters.get(user.getUniqueId());
-            if (reconnecter == null) {
-                reconnecters.put(user.getUniqueId(), reconnecter = new Reconnecter(this, getProxy(), user, server));
-            }
-            reconnecter.start();
+            current = reconnecters.get(user.getUniqueId());
+            reconnecters.put(user.getUniqueId(), reconnecter);
         }
+        if (current != null) {
+            current.cancel();
+        }
+        reconnecter.start();
     }
     
     /**
@@ -425,12 +422,13 @@ public class Reconnect extends Plugin implements Listener {
      * @param uuid The UniqueId of the User.
      */
     void cancelReconnecterFor(UUID uuid) {
+        Reconnecter task;
         synchronized (reconnecters) {
-            Reconnecter task = reconnecters.remove(uuid);
-            if (task != null) {
-                task.failReconnect();
-                task.cancel();
-            }
+            task = reconnecters.remove(uuid);
+        }
+        if (task != null) {
+            task.failReconnect();
+            task.cancel();
         }
     }
     

@@ -5,7 +5,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelPipeline;
 import me.taucu.reconnect.Reconnect;
-import me.taucu.reconnect.Reconnecter;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -24,7 +23,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     private final ServerConnection server;
     
-    private volatile boolean wasLegitimatelyKicked = false;
+    private volatile boolean isLegitimateInactive = true;
     
     public static void attachHandlerTo(UserConnection ucon, Reconnect instance) {
         ChannelPipeline pipeline = ucon.getServer().getCh().getHandle().pipeline();
@@ -59,8 +58,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         instance.debug(this, "HANDLE_CHANNEL_INACTIVE");
-        Reconnecter reconnecter = instance.getReconnecterFor(ucon.getUniqueId());
-        if (reconnecter != null && reconnecter.getServer().getInfo().equals(server.getInfo())) {
+        if (ucon.getServer() == server && !isLegitimateInactive) {
             instance.debug(this, "  handling, reconnect if applicable");
             if (instance.reconnectIfApplicable(ucon, server)) {
                 server.setObsolete(true);
@@ -68,11 +66,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                 return;
             }
         }
-        // handle normally only if they have been legitimately kicked, they have switched servers or they disconnected
-        if (wasLegitimatelyKicked || !instance.isUserOnline(ucon) || !ucon.getServer().getInfo().equals(server.getInfo())) {
-            instance.debug(this, "  handling normally, wasLegitimatelyKicked=" + wasLegitimatelyKicked + ", onlineCheck=" + !instance.isUserOnline(ucon) + ", serverCheck=" + !ucon.getServer().getInfo().equals(server.getInfo()));
-            ctx.fireChannelInactive();
-        }
+        ctx.fireChannelInactive();
     }
     
     @Override
@@ -86,8 +80,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     Kick kick = (Kick) packet;
                     instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
                     
-                    // assume true for now
-                    boolean legitimateKick = true;
+                    boolean legitimateInactive = true;
                     
                     // check if the server is ignored to save time
                     if (!instance.isIgnoredServer(server.getInfo())) {
@@ -101,11 +94,10 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         if (instance.isReconnectKick(kickMessage)) {
                             // reconnect if applicable & check if we will
                             if (instance.reconnectIfApplicable(ucon, server)) {
-                                // don't let HandlerBoss get its grubby little hands on this
                                 server.setObsolete(true);
                                 // don't propagate this to the next handler
                                 propagate = false;
-                                legitimateKick = false;
+                                legitimateInactive = false;
                             } else {
                                 instance.debug(this, "not handling because reconnectIfApplicable returned false");
                             }
@@ -116,7 +108,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         instance.debug(this, "not handling because it's an ignored server.");
                     }
                     
-                    wasLegitimatelyKicked = legitimateKick;
+                    isLegitimateInactive = legitimateInactive;
+                    
                 }
             } finally {
                 if (propagate) {
@@ -147,7 +140,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) throws Exception {
         if (ctx.channel().isActive()) {
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
-            if (instance.reconnectIfApplicable(ucon, server)) {
+            if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
                 instance.debug(this, "  handling, reconnecting");
                 server.setObsolete(true);
                 // return so fireExceptionCaught isn't called
