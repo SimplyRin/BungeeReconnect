@@ -163,14 +163,12 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
-            } else {
-                if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
-                    instance.debug(this, "handling, reconnecting");
-                    startedReconnecting = true;
-                    server.setObsolete(true);
-                    // return so fireExceptionCaught isn't called
-                    return;
-                }
+            } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
+                instance.debug(this, "handling, reconnecting");
+                startedReconnecting = true;
+                server.setObsolete(true);
+                // return so fireExceptionCaught isn't called
+                return;
             }
         }
         
