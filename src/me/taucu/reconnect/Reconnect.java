@@ -241,7 +241,7 @@ public class Reconnect extends Plugin implements Listener {
         
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
-        delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 0);
+        delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 500);
         nanosBetweenConnects = TimeUnit.MILLISECONDS
                 .toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
         maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")),
