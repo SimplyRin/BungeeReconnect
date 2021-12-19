@@ -157,9 +157,4 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
         ctx.fireExceptionCaught(yeet);
     }
     
-    @SuppressWarnings("unchecked")
-    public static <E extends Throwable> void yeet(Throwable e) throws E {
-        throw (E) e;
-    }
-    
 }
