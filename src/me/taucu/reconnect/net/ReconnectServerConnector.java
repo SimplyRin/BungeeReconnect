@@ -35,7 +35,7 @@ public class ReconnectServerConnector extends ServerConnector {
     
     @Override
     public void exception(Throwable t) throws Exception {
-        instance.debug("HANDLE_EXCEPTION");
+        instance.debug(this, "HANDLE_EXCEPTION");
         if (connecter.isCancelled()) {
             instance.debug("  connecter is cancelled, handle normally");
             super.exception(t);
@@ -46,7 +46,7 @@ public class ReconnectServerConnector extends ServerConnector {
     
     @Override
     public void handle(Kick kick) throws Exception {
-        instance.debug("HANDLE_KICK");
+        instance.debug(this, "HANDLE_KICK");
         if (connecter.isCancelled()) {
             instance.debug("  connecter is cancelled, handle normally");
             super.handle(kick);
@@ -57,7 +57,7 @@ public class ReconnectServerConnector extends ServerConnector {
     
     @Override
     public void handle(LoginSuccess loginSuccess) throws Exception {
-        instance.debug("HANDLE_LOGIN_SUCCESS");
+        instance.debug(this, "HANDLE_LOGIN_SUCCESS");
         connecter.setJoinFlag(true);
         super.handle(loginSuccess);
     }
