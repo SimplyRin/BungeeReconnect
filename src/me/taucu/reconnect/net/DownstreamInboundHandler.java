@@ -38,10 +38,18 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     public static void attachHandlerTo(ChannelPipeline pipeline, UserConnection ucon, Reconnect instance) {
+        detachHandlerFrom(pipeline);
+        pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
+    }
+    
+    public static void detachHandlerFrom(UserConnection ucon) {
+        detachHandlerFrom(ucon.getServer().getCh().getHandle().pipeline());
+    }
+    
+    public static void detachHandlerFrom(ChannelPipeline pipeline) {
         if (pipeline.get(NAME) != null) {
             pipeline.remove(NAME);
         }
-        pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
     }
     
     public DownstreamInboundHandler(UserConnection ucon, Reconnect instance) {
