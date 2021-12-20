@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.util.Iterator;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -11,15 +11,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import eu.the5zig.reconnect.net.BasicChannelInitializer;
-import eu.the5zig.reconnect.util.MyPipelineUtils;
-import eu.the5zig.reconnect.util.scheduler.Sched;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.util.internal.PlatformDependent;
+import me.taucu.reconnect.net.ReconnectChannelInitializer;
+import me.taucu.reconnect.util.MyPipelineUtils;
+import me.taucu.reconnect.util.scheduler.Sched;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
@@ -64,10 +64,13 @@ public class Reconnecter {
     private final Object channelSync = new Object();
     
     // last time a try was attempted
-    private volatile long lastChannelTime = 0;
+    private volatile long lastChannelTime = System.nanoTime();
     
     // The current holder if any
     private volatile Holder holder = null;
+    
+    // true once the user has been flagged as "joined"
+    private volatile boolean joinFlag = false;
     
     /**
      * 
@@ -88,10 +91,11 @@ public class Reconnecter {
     }
     
     private final Runnable run = new Runnable() {
+        long ctime = System.nanoTime();
         @Override
         public void run() {
-            reconnect.debug(Reconnecter.this, "running");
             if (isCancelled) {
+                reconnect.debug(Reconnecter.this, "cancelled check is true");
                 return;
             }
             final ChannelFuture future = channelFuture;
@@ -100,31 +104,35 @@ public class Reconnecter {
             if (statusCheck()) {
                 // check if timeout has expired
                 if (hasTimedOut()) {
+                    reconnect.debug(Reconnecter.this, "reconnecter has exceeded max reconnect time");
                     // Proceed with plan B :(
                     failReconnect();
                     return;
                 } else {
-                    
                     // Check if the future is null
                     if (future != null) {
-                        
-                        // check if the channel has been canceled or has completed but failed or has
-                        // timed out
+                        reconnect.debug(Reconnecter.this, "channelFuture check");
+                        // check if the channel has been canceled or has completed but failed or has timed out
                         if (!future.isCancelled()
                                 && !(future.isDone() && !(future.isSuccess() && future.channel().isActive()))
-                                && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > System.nanoTime()
+                                && lastChannelTime + TimeUnit.MILLISECONDS.toNanos(reconnect.getReconnectTimeout()) > ctime
                                 ) {
-                            reconnect.debug(Reconnecter.this, "channel future failed");
                             retry();
                             return;
                         }
                         
+                        reconnect.debug(Reconnecter.this, "channel future failed");
                         dropHolder();
                         tryCloseChannel(future);
                     }
                     
-                    // Attempt a reconnect
-                    tryReconnect();
+                    long nextFutureTime = lastChannelTime + 1_000_000_000L + reconnect.getNanosBetweenConnects();
+                    if (nextFutureTime > ctime) {
+                        // Attempt a reconnect
+                        tryReconnect();
+                    } else {
+                        retry(Math.max(1, TimeUnit.NANOSECONDS.toMillis(nextFutureTime - ctime)));
+                    }
                     return;
                 }
             } else {
@@ -140,7 +148,7 @@ public class Reconnecter {
      * @return true if we should continue
      */
     public boolean statusCheck() {
-        return isOnline() && (isSameServer() || (isSameInfo() && user.getDimension() == null));
+        return isOnline() && (isSameServer() || (isSameInfo() && !joinFlag));
     }
     
     /**
@@ -180,8 +188,7 @@ public class Reconnecter {
         if (isRunning && !isCancelled) {
             return;
         }
-        log.fine("starting reconnecter for \"" + user.getName() + "\" will be waiting for: "
-                + reconnect.getDelayBeforeTrying());
+        reconnect.debug(this, "start invoked " + this.toString());
         isRunning = true;
         startTime = System.nanoTime();
         
@@ -191,15 +198,28 @@ public class Reconnecter {
         // as keepAlive Packets)
         startSendingUpdates();
         // invoke the "run" runnable after the delay before trying
+        
+        // set dimension change to true and dimension to null
+        user.setDimensionChange(true);
+        user.setDimension(null);
+        
         retry(reconnect.getDelayBeforeTrying());
+    }
+    
+    /**
+     * Gets the reconnect instance
+     * @return the reconnect instance
+     */
+    public Reconnect getReconnect() {
+        return reconnect;
     }
     
     /**
      * Called when a retry should occur
      */
     private void retry() {
-        // invoke the "run" runnable after 100 msec
-        retry(100);
+        // invoke the "run" runnable after 250 msec
+        retry(250);
     }
     
     /**
@@ -235,7 +255,7 @@ public class Reconnecter {
             currentServer.setObsolete(true);
             
             // Create channel initializer.
-            ChannelInitializer<Channel> initializer = new BasicChannelInitializer(bungee, user, targetInfo);
+            ChannelInitializer<Channel> initializer = new ReconnectChannelInitializer(this, bungee, user, targetInfo);
             
             // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
             Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
@@ -248,6 +268,10 @@ public class Reconnecter {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
             
+            // set dimension change to true and dimension to null
+            user.setDimensionChange(true);
+            user.setDimension(null);
+            
             // connect
             reconnect.debug(Reconnecter.this, "connecting...");
             ChannelFuture future = bootstrap.connect();
@@ -255,6 +279,7 @@ public class Reconnecter {
             try {
                 // wait for the future to finish or fail for no longer then reconnect timeout
                 future.get(reconnect.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+                
                 synchronized (channelSync) {
                     if (isCancelled) {
                         reconnect.debug(Reconnecter.this, "post-connect cancelled check returned true");
@@ -279,6 +304,22 @@ public class Reconnecter {
         }
         // Call next retry to check the connection state etc irrelevant of the outcome of the future.
         retry();
+    }
+    
+    /**
+     * Gets the joined flag
+     * @return if they have joined
+     */
+    public boolean getJoinFlag() {
+        return joinFlag;
+    }
+    
+    /**
+     * Sets the joined flag
+     * @param joined if they have joined
+     */
+    public void setJoinFlag(boolean joined) {
+        this.joinFlag = joined;
     }
     
     /**
@@ -616,12 +657,20 @@ public class Reconnecter {
     }
     
     /**
+     * Checks if this reconnecter is cancelled
+     * @return true if cancelled false otherwise
+     */
+    public boolean isCancelled() {
+        return isCancelled;
+    }
+    
+    /**
      * Cancels this reconnecter
      * 
      * @param force Should we forcefully cancel the channel even if it's active
      */
     public synchronized void cancel(boolean force) {
-        reconnect.debug(Reconnecter.this, "cancel invoked. " + force);
+        reconnect.debug(Reconnecter.this, "cancel invoked(force=" + force + ") : " + toString());
         
         isCancelled = true;
         isRunning = false;
@@ -648,7 +697,7 @@ public class Reconnecter {
                 + updateRate + ", stayTime=" + titleStayTime + ", updatesTaskNull?=" + (updatesTask == null) + ", updates="
                 + updatesEnabled + ", cancelled=" + isCancelled + ", running=" + isRunning + ", channelFuture=" + channelFuture
                 + ", lastFutureTime=" + lastChannelTime + ", holder=" + holder + ", statusCheck()=" + statusCheck()
-                + " (dimIsNull?=" + (user.getDimension() == null) + ")]";
+                + " joinFlag=" + joinFlag + "]";
         
     }
     

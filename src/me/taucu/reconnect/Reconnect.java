@@ -1,4 +1,4 @@
-package eu.the5zig.reconnect;
+package me.taucu.reconnect;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -23,9 +23,9 @@ import com.google.common.base.Strings;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 
-import eu.the5zig.reconnect.api.ServerReconnectEvent;
-import eu.the5zig.reconnect.command.CommandReconnect;
-import eu.the5zig.reconnect.net.ReconnectBridge;
+import me.taucu.reconnect.api.ServerReconnectEvent;
+import me.taucu.reconnect.command.CommandReconnect;
+import me.taucu.reconnect.net.DownstreamInboundHandler;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
@@ -41,7 +41,7 @@ import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
-import net.md_5.bungee.netty.HandlerBoss;
+import net.md_5.bungee.event.EventPriority;
 
 public class Reconnect extends Plugin implements Listener {
     
@@ -80,7 +80,7 @@ public class Reconnect extends Plugin implements Listener {
         if (tryReloadConfig(getLogger())) {
             // set bridges in the event of this plugin being loaded by a plugin manager
             for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
-                setDownstreamBridgeOf((UserConnection) proxiedPlayer);
+                DownstreamInboundHandler.attachHandlerTo((UserConnection) proxiedPlayer, this);
             }
         }
         
@@ -107,19 +107,28 @@ public class Reconnect extends Plugin implements Listener {
     
     public void debug(Object o, String m, Throwable t) {
         if (debug) {
-            getLogger().log(Level.FINE, o + " " + m, t);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m, t);
         }
     }
     
     public void debug(Object o, String m) {
         if (debug) {
-            getLogger().log(Level.FINE, o + " " + m);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m);
         }
     }
     
     public void debug(String m) {
         if (debug) {
-            getLogger().log(Level.FINE, m);
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            String clazzName = null;
+            try {
+                clazzName = Class.forName(element.getClassName()).getSimpleName();
+            } catch (ClassNotFoundException e) {
+                clazzName = element.getClassName();
+            }
+            getLogger().log(Level.FINE, clazzName + ":" + element.getLineNumber() + " " + m);
         }
     }
     
@@ -233,7 +242,7 @@ public class Reconnect extends Plugin implements Listener {
         
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
-        delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 0);
+        delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 500);
         nanosBetweenConnects = TimeUnit.MILLISECONDS
                 .toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
         maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")),
@@ -280,16 +289,16 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    @EventHandler()
+    @EventHandler(priority = EventPriority.HIGH)
     public void onServerSwitch(ServerSwitchEvent event) {
-        // We need to override the Downstream class of each user so that we can override
-        // the disconnect methods of it.
-        // ServerSwitchEvent is called just right after the Downstream Bridge has been
-        // initialized, so we simply can
-        // instantiate here our own implementation of the DownstreamBridge
-        setDownstreamBridgeOf((UserConnection) event.getPlayer());
+        debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
+        UserConnection ucon = (UserConnection) event.getPlayer();
         
-        // cancel reconnecter instantly if the user switches servers
+        // we need to detect exceptions and kicks before bungeecord does,
+        // so we register a channel handler before HandlerBoss
+        DownstreamInboundHandler.attachHandlerTo(ucon, this);
+        
+        // checks to see if we should cancel the reconnecter if it exists
         Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
         if (re != null && !re.isSameInfo()) {
             re.cancel(true);
@@ -300,13 +309,6 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    public void setDownstreamBridgeOf(UserConnection user) {
-        ServerConnection con = user.getServer();
-        
-        ReconnectBridge bridge = new ReconnectBridge(this, getProxy(), user, con);
-        con.getCh().getHandle().pipeline().get(HandlerBoss.class).setHandler(bridge);
-    }
-    
     private boolean resolveMode(String mode) {
         switch (mode.toLowerCase()) {
         case "whitelist":
@@ -314,8 +316,7 @@ public class Reconnect extends Plugin implements Listener {
         case "blacklist":
             return false;
         default:
-            getLogger().warning(
-                    "servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
+            getLogger().warning("servers.mode \"" + mode + "\" is not a valid mode. Must be either whitelist or blacklist.");
             getLogger().warning("defaulting to blacklist.");
             return false;
         }
@@ -349,22 +350,40 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     /**
+     * Starts the reconnect process assuming all conditions are met
+     * <p>
+     * These conditions include but are not limited to:
+     * Server Whitelist/Blacklist, user being online
+     * @param ucon the UserConnection to reconnect
+     * @param server the Server they are going to reconnect to
+     * @return true if a reconnect will occur, false otherwise
+     */
+    public boolean reconnectIfApplicable(UserConnection ucon, ServerConnection server) {
+        if (!isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
+            return reconnectIfOnline(ucon, server);
+        } else {
+            debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
+        }
+        return false;
+    }
+    
+    /**
      * Reconnects a User to a Server, as long as the user is currently online. If he
      * isn't, his reconnect task (if he had one) will be canceled.
      *
      * @param user   The User that should be reconnected.
      * @param server The Server the User should be connected to.
+     * @return true if the user is online or was reconnecting to this server
      */
-    public void reconnectIfOnline(UserConnection user, ServerConnection server) {
-        getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
+    public boolean reconnectIfOnline(UserConnection user, ServerConnection server) {
         if (isUserOnline(user)) {
-            if (!isReconnecting(user.getUniqueId())) {
-                reconnect(user, server);
-            }
+            getLogger().info("Reconnecting \"" + user.getName() + "\" to \"" + server.getInfo().getName() + "\"");
+            reconnect(user, server);
+            return true;
         } else {
             debug("cannot reconnect \"" + user.getName() + "\" as they are offline.");
-            cancelReconnecterFor(user.getUniqueId());
         }
+        return false;
     }
     
     /**
@@ -386,13 +405,16 @@ public class Reconnect extends Plugin implements Listener {
      * @param server The Server the User should be connected to.
      */
     private void reconnect(UserConnection user, ServerConnection server) {
+        Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
+        Reconnecter current = null;
         synchronized (reconnecters) {
-            Reconnecter reconnecter = reconnecters.get(user.getUniqueId());
-            if (reconnecter == null) {
-                reconnecters.put(user.getUniqueId(), reconnecter = new Reconnecter(this, getProxy(), user, server));
-            }
-            reconnecter.start();
+            current = reconnecters.get(user.getUniqueId());
+            reconnecters.put(user.getUniqueId(), reconnecter);
         }
+        if (current != null) {
+            current.cancel();
+        }
+        reconnecter.start();
     }
     
     /**
@@ -401,12 +423,13 @@ public class Reconnect extends Plugin implements Listener {
      * @param uuid The UniqueId of the User.
      */
     void cancelReconnecterFor(UUID uuid) {
+        Reconnecter task;
         synchronized (reconnecters) {
-            Reconnecter task = reconnecters.remove(uuid);
-            if (task != null) {
-                task.failReconnect();
-                task.cancel();
-            }
+            task = reconnecters.remove(uuid);
+        }
+        if (task != null) {
+            task.failReconnect();
+            task.cancel();
         }
     }
     
@@ -442,19 +465,6 @@ public class Reconnect extends Plugin implements Listener {
             }
         }, Reason.SERVER_DOWN_REDIRECT);
         user.sendMessage(bungee.getTranslation("server_went_down"));
-    }
-    
-    /**
-     * Checks whether a User has got a reconnect task.
-     *
-     * @param uuid The UniqueId of the User.
-     * @return true, if there is a task that tries to reconnect the User to a
-     *         server.
-     */
-    public boolean isReconnecting(UUID uuid) {
-        synchronized (reconnecters) {
-            return reconnecters.containsKey(uuid);
-        }
     }
     
     public String getReconnectingTitle() {
@@ -525,7 +535,7 @@ public class Reconnect extends Plugin implements Listener {
         return shutdownPattern != null;
     }
     
-    public boolean isShutdownKick(String message) {
+    public boolean isReconnectKick(String message) {
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {

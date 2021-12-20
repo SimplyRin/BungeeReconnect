@@ -1,10 +1,10 @@
-package eu.the5zig.reconnect.api;
+package me.taucu.reconnect.api;
 
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 
-import eu.the5zig.reconnect.ServerQueue;
+import me.taucu.reconnect.ServerQueue;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Cancellable;
