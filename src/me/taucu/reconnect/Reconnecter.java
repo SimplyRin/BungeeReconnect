@@ -258,7 +258,8 @@ public class Reconnecter {
             ChannelInitializer<Channel> initializer = new ReconnectChannelInitializer(this, bungee, user, targetInfo);
             
             // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-            Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
+            Bootstrap bootstrap = new Bootstrap()
+                    .channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
                     .group(currentServer.getCh().getHandle().eventLoop()).handler(initializer)
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, reconnect.getReconnectTimeout())
                     .remoteAddress(targetInfo.getAddress());
