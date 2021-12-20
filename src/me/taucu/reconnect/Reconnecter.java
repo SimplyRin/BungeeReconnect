@@ -268,10 +268,6 @@ public class Reconnecter {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
             
-            // set dimension change to true and dimension to null
-            user.setDimensionChange(true);
-            user.setDimension(null);
-            
             // connect
             reconnect.debug(Reconnecter.this, "connecting...");
             ChannelFuture future = bootstrap.connect();
