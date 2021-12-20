@@ -41,6 +41,7 @@ import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
+import net.md_5.bungee.event.EventPriority;
 
 public class Reconnect extends Plugin implements Listener {
     
@@ -288,7 +289,7 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    @EventHandler()
+    @EventHandler(priority = EventPriority.HIGH)
     public void onServerSwitch(ServerSwitchEvent event) {
         debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
         UserConnection ucon = (UserConnection) event.getPlayer();
