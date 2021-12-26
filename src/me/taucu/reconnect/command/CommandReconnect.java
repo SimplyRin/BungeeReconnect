@@ -50,6 +50,11 @@ public class CommandReconnect extends Command implements TabExecutor {
             .append("Testing reconnect")
             .create();
     
+    private static final BaseComponent[] cmdFeedbackTestingFalse = new ComponentBuilder()
+            .color(ChatColor.RED)
+            .append("Not reconnecting because it's an ignored server, or the reconnect event has been cancelled")
+            .create();
+    
     private static final BaseComponent[] cmdFeedbackTestingConsoleError = new ComponentBuilder()
             .color(ChatColor.RED)
             .append("you must use this command in-game")
@@ -66,7 +71,7 @@ public class CommandReconnect extends Command implements TabExecutor {
             switch (args[0].toLowerCase()) {
             case "reload":
                 sender.sendMessage(cmdFeedbackReloadAttempt);
-                if (instance.tryReloadConfig(instance.getLogger())) {
+                if (instance.reload()) {
                     sender.sendMessage(cmdFeedbackReloadComplete);
                 } else {
                     sender.sendMessage(cmdFeedbackReloadError);
@@ -76,7 +81,9 @@ public class CommandReconnect extends Command implements TabExecutor {
                 if (sender instanceof UserConnection) {
                     sender.sendMessage(cmdFeedbackTesting);
                     UserConnection ucon = (UserConnection) sender;
-                    instance.reconnectIfOnline(ucon, ucon.getServer());
+                    if (!instance.reconnectIfApplicable(ucon, ucon.getServer())) {
+                        sender.sendMessage(cmdFeedbackTestingFalse);
+                    }
                 } else {
                     sender.sendMessage(cmdFeedbackTestingConsoleError);
                 }

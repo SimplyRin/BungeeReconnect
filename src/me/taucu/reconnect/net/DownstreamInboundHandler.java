@@ -38,10 +38,18 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     public static void attachHandlerTo(ChannelPipeline pipeline, UserConnection ucon, Reconnect instance) {
+        detachHandlerFrom(pipeline);
+        pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
+    }
+    
+    public static void detachHandlerFrom(UserConnection ucon) {
+        detachHandlerFrom(ucon.getServer().getCh().getHandle().pipeline());
+    }
+    
+    public static void detachHandlerFrom(ChannelPipeline pipeline) {
         if (pipeline.get(NAME) != null) {
             pipeline.remove(NAME);
         }
-        pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
     }
     
     public DownstreamInboundHandler(UserConnection ucon, Reconnect instance) {
@@ -75,6 +83,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             instance.debug(this, "already reconnecting");
             server.setObsolete(true);
             ch.markClosed();
+            server.getInfo().removePlayer(ucon);
             return;
         } else {
             if (ucon.getServer() == server && !legitimateKick) {
@@ -83,6 +92,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     startedReconnecting = true;
                     server.setObsolete(true);
                     ch.markClosed();
+                    server.getInfo().removePlayer(ucon);
                     log("lost connection");
                     // return so fireChannelInactive isn't called
                     return;
@@ -168,11 +178,13 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
+                ctx.close();
             } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
                 instance.debug(this, "reconnecting");
                 startedReconnecting = true;
                 server.setObsolete(true);
                 log("Exception caught: " + (yeet == null ? "null" : yeet.getLocalizedMessage()));
+                ctx.close();
                 // return so fireExceptionCaught isn't called
                 return;
             }

@@ -258,7 +258,8 @@ public class Reconnecter {
             ChannelInitializer<Channel> initializer = new ReconnectChannelInitializer(this, bungee, user, targetInfo);
             
             // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
-            Bootstrap bootstrap = new Bootstrap().channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
+            Bootstrap bootstrap = new Bootstrap()
+                    .channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
                     .group(currentServer.getCh().getHandle().eventLoop()).handler(initializer)
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, reconnect.getReconnectTimeout())
                     .remoteAddress(targetInfo.getAddress());
@@ -267,10 +268,6 @@ public class Reconnecter {
                     && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress) {
                 bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
             }
-            
-            // set dimension change to true and dimension to null
-            user.setDimensionChange(true);
-            user.setDimension(null);
             
             // connect
             reconnect.debug(Reconnecter.this, "connecting...");

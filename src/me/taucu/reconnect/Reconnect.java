@@ -75,100 +75,47 @@ public class Reconnect extends Plugin implements Listener {
     
     @Override
     public void onEnable() {
-        
-        // load Configuration
-        if (tryReloadConfig(getLogger())) {
-            // set bridges in the event of this plugin being loaded by a plugin manager
-            for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
-                DownstreamInboundHandler.attachHandlerTo((UserConnection) proxiedPlayer, this);
-            }
-        }
-        
         fixLogger();
         
-        // setup Command
+        // setup command
         getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
+        
+        // also registers events etc
+        reload();
     }
     
-    public void fixLogger() {
-        getLogger().setFilter(new Filter() {
-            
-            @Override
-            public boolean isLoggable(LogRecord r) {
-                // eat mega shit dicks bungee
-                if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
-                    r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
-                    r.setLevel(Level.INFO);
-                }
-                return true;
-            }
-        });
-    }
-    
-    public void debug(Object o, String m, Throwable t) {
-        if (debug) {
-            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
-            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m, t);
+    private void enableSystem() {
+        disableSystem();
+        // set bridges in the event of this plugin being loaded by a plugin manager
+        for (ProxiedPlayer proxiedPlayer : getProxy().getPlayers()) {
+            DownstreamInboundHandler.attachHandlerTo((UserConnection) proxiedPlayer, this);
         }
-    }
-    
-    public void debug(Object o, String m) {
-        if (debug) {
-            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
-            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m);
-        }
-    }
-    
-    public void debug(String m) {
-        if (debug) {
-            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
-            String clazzName = null;
-            try {
-                clazzName = Class.forName(element.getClassName()).getSimpleName();
-            } catch (ClassNotFoundException e) {
-                clazzName = element.getClassName();
-            }
-            getLogger().log(Level.FINE, clazzName + ":" + element.getLineNumber() + " " + m);
-        }
-    }
-    
-    private void registerListener() {
-        unregisterListener();
+        
         getProxy().getPluginManager().registerListener(this, this);
     }
     
-    private void unregisterListener() {
+    private void disableSystem() {
+        // unregister listeners
         getProxy().getPluginManager().unregisterListener(this);
-    }
-    
-    /**
-     * Cancels all active reconnectors (if any) Tries to load the config from the
-     * config file or creates a default config if the file does not exist. Then it
-     * loads all required values into active memory and processes them as needed.
-     * 
-     * @return If the configuration was successfully reloaded. if false, reconnect
-     *         will disable functionality until rectified.
-     */
-    public boolean tryReloadConfig(Logger log) {
-        // disable listeners
-        unregisterListener();
+        
+        // detach all handlers
+        getProxy().getPlayers().forEach(ucon -> DownstreamInboundHandler.detachHandlerFrom((UserConnection) ucon));
         
         // cancel all reconnecters
-        synchronized (reconnecters) {
-            (new ArrayList<UUID>(reconnecters.keySet())).forEach(uid -> {
-                cancelReconnecterFor(uid);
-            });
-        }
+        getReconnecters().forEach(re -> re.cancel(true));
+    }
+    
+    public boolean reload() {
+        disableSystem();
         
         try {
-            loadConfig(log);
-            registerListener();
+            loadConfig(getLogger());
+            enableSystem();
             return true;
         } catch (Exception e) {
-            log.log(Level.SEVERE,
-                    "Error while loading config, plugin functionality disabled until situation is rectified.", e);
-            return false;
+            getLogger().log(Level.SEVERE, "Error while loading config, plugin functionality disabled until situation is rectified.", e);
         }
+        return false;
     }
     
     private void loadConfig(Logger log) throws Exception {
@@ -387,6 +334,16 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     /**
+     * Returns a new list of all current reconnecters
+     * @return list of reconnecters
+     */
+    public ArrayList<Reconnecter> getReconnecters() {
+        synchronized (reconnecters) {
+            return new ArrayList<Reconnecter>(reconnecters.values());
+        }
+    }
+    
+    /**
      * Gets current reconnecter for player or null if none exist
      * 
      * @param uid UUID of the player
@@ -404,7 +361,7 @@ public class Reconnect extends Plugin implements Listener {
      * @param user   The User that should be reconnected.
      * @param server The Server the User should be connected to.
      */
-    private void reconnect(UserConnection user, ServerConnection server) {
+    private synchronized void reconnect(UserConnection user, ServerConnection server) {
         Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
         Reconnecter current = null;
         synchronized (reconnecters) {
@@ -575,6 +532,49 @@ public class Reconnect extends Plugin implements Listener {
      */
     public Holder waitForConnect(ServerInfo server, UserConnection who, long timeout, TimeUnit timeoutUnit) {
         return queueManager.queue(server, who, timeout, timeoutUnit);
+    }
+    
+    
+    public void fixLogger() {
+        getLogger().setFilter(new Filter() {
+            
+            @Override
+            public boolean isLoggable(LogRecord r) {
+                // eat mega shit dicks bungee
+                if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
+                    r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
+                    r.setLevel(Level.INFO);
+                }
+                return true;
+            }
+        });
+    }
+    
+    public void debug(Object o, String m, Throwable t) {
+        if (debug) {
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m, t);
+        }
+    }
+    
+    public void debug(Object o, String m) {
+        if (debug) {
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            getLogger().log(Level.FINE, o.getClass().getSimpleName() + "@" + Integer.toHexString(o.hashCode()) + ":" + element.getLineNumber() + " " + m);
+        }
+    }
+    
+    public void debug(String m) {
+        if (debug) {
+            StackTraceElement element = Thread.currentThread().getStackTrace()[2];
+            String clazzName = null;
+            try {
+                clazzName = Class.forName(element.getClassName()).getSimpleName();
+            } catch (ClassNotFoundException e) {
+                clazzName = element.getClassName();
+            }
+            getLogger().log(Level.FINE, clazzName + ":" + element.getLineNumber() + " " + m);
+        }
     }
     
 }
