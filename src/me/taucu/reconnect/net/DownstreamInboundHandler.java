@@ -83,6 +83,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             instance.debug(this, "already reconnecting");
             server.setObsolete(true);
             ch.markClosed();
+            server.getInfo().removePlayer(ucon);
             return;
         } else {
             if (ucon.getServer() == server && !legitimateKick) {
@@ -91,6 +92,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     startedReconnecting = true;
                     server.setObsolete(true);
                     ch.markClosed();
+                    server.getInfo().removePlayer(ucon);
                     log("lost connection");
                     // return so fireChannelInactive isn't called
                     return;
@@ -176,11 +178,13 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
+                ctx.close();
             } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
                 instance.debug(this, "reconnecting");
                 startedReconnecting = true;
                 server.setObsolete(true);
                 log("Exception caught: " + (yeet == null ? "null" : yeet.getLocalizedMessage()));
+                ctx.close();
                 // return so fireExceptionCaught isn't called
                 return;
             }
