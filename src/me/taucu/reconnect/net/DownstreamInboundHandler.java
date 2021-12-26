@@ -12,6 +12,7 @@ import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.event.ServerDisconnectEvent;
 import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.DefinedPacket;
@@ -84,6 +85,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
             server.setObsolete(true);
             ch.markClosed();
             server.getInfo().removePlayer(ucon);
+            ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+            instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
             return;
         } else {
             if (ucon.getServer() == server && !legitimateKick) {
@@ -94,6 +97,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     ch.markClosed();
                     server.getInfo().removePlayer(ucon);
                     log("lost connection");
+                    ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+                    instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
                     // return so fireChannelInactive isn't called
                     return;
                 }
