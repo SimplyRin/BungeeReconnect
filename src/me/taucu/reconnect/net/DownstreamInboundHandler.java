@@ -80,31 +80,33 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         instance.debug(this, "HANDLE_CHANNEL_INACTIVE sameServer=" + (ucon.getServer() == server));
-        if (startedReconnecting) {
-            instance.debug(this, "already reconnecting");
-            server.setObsolete(true);
-            ch.markClosed();
-            server.getInfo().removePlayer(ucon);
-            ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
-            instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
-            return;
-        } else {
-            if (ucon.getServer() == server && !legitimateKick) {
-                instance.debug(this, "handling, reconnect if applicable");
-                if (instance.reconnectIfApplicable(ucon, server)) {
-                    startedReconnecting = true;
-                    server.setObsolete(true);
-                    ch.markClosed();
-                    server.getInfo().removePlayer(ucon);
-                    log("lost connection");
-                    ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
-                    instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
-                    // return so fireChannelInactive isn't called
-                    return;
+        if (ucon.isConnected()) {
+            if (startedReconnecting) {
+                instance.debug(this, "already reconnecting");
+                server.setObsolete(true);
+                ch.markClosed();
+                server.getInfo().removePlayer(ucon);
+                ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+                instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
+                return;
+            } else {
+                if (ucon.getServer() == server && !legitimateKick) {
+                    instance.debug(this, "handling, reconnect if applicable");
+                    if (instance.reconnectIfApplicable(ucon, server)) {
+                        startedReconnecting = true;
+                        server.setObsolete(true);
+                        ch.markClosed();
+                        server.getInfo().removePlayer(ucon);
+                        log("lost connection");
+                        ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+                        instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
+                        // return so fireChannelInactive isn't called
+                        return;
+                    }
                 }
             }
-            ctx.fireChannelInactive();
         }
+        ctx.fireChannelInactive();
     }
     
     @Override
@@ -179,11 +181,12 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) throws Exception {
-        if (ctx.channel().isActive()) {
+        if (ctx.channel().isActive() && ucon.isConnected()) {
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
                 ctx.close();
+                return;
             } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
                 instance.debug(this, "reconnecting");
                 startedReconnecting = true;
@@ -194,10 +197,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                 return;
             }
         }
-        
-        if (!startedReconnecting) {
-            ctx.fireExceptionCaught(yeet);
-        }
+        ctx.fireExceptionCaught(yeet);
     }
     
     public void log(String msg) {

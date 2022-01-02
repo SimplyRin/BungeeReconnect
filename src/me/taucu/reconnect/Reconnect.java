@@ -293,7 +293,7 @@ public class Reconnect extends Plugin implements Listener {
      * @return true, if the UserConnection is still online.
      */
     public boolean isUserOnline(UserConnection user) {
-        return getProxy().getPlayer(user.getUniqueId()) != null;
+        return user.isConnected();
     }
     
     /**
