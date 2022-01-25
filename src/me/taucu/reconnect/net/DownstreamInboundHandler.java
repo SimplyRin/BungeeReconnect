@@ -120,7 +120,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     Kick kick = (Kick) packet;
                     instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
                     
-                    boolean legitimageKick = true;
+                    boolean legitimateKick = true;
                     
                     if (!instance.isIgnoredServer(server.getInfo())) {
                         
@@ -136,7 +136,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                             if (instance.reconnectIfApplicable(ucon, server)) {
                                 // don't propagate this to the next handler
                                 fireNextRead = false;
-                                legitimageKick = false;
+                                legitimateKick = false;
                                 startedReconnecting = true;
                                 server.setObsolete(true);
                             } else {
@@ -149,7 +149,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         instance.debug(this, "not handling because it's an ignored server.");
                     }
                     
-                    this.legitimateKick = legitimageKick;
+                    this.legitimateKick = legitimateKick;
                     
                 }
             } finally {

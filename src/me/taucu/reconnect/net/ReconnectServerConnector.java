@@ -37,7 +37,7 @@ public class ReconnectServerConnector extends ServerConnector {
     public void exception(Throwable t) throws Exception {
         instance.debug(this, "HANDLE_EXCEPTION");
         if (connecter.isCancelled()) {
-            instance.debug("  connecter is cancelled, handle normally");
+            instance.debug("  connector is cancelled, handle normally");
             super.exception(t);
         } else {
             throw CancelSendSignal.INSTANCE;
@@ -48,7 +48,7 @@ public class ReconnectServerConnector extends ServerConnector {
     public void handle(Kick kick) throws Exception {
         instance.debug(this, "HANDLE_KICK");
         if (connecter.isCancelled()) {
-            instance.debug("  connecter is cancelled, handle normally");
+            instance.debug("  connector is cancelled, handle normally");
             super.handle(kick);
         } else {
             throw CancelSendSignal.INSTANCE;
