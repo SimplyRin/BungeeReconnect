@@ -14,14 +14,14 @@ import net.md_5.bungee.protocol.Protocol;
 
 public class ReconnectChannelInitializer extends ChannelInitializer<Channel> {
     
-    private final Reconnecter connecter;
+    private final Reconnecter connector;
     
     private final ProxyServer bungee;
     private final UserConnection user;
     private final BungeeServerInfo target;
     
-    public ReconnectChannelInitializer(Reconnecter connecter, ProxyServer bungee, UserConnection user, BungeeServerInfo target) {
-        this.connecter = connecter;
+    public ReconnectChannelInitializer(Reconnecter connector, ProxyServer bungee, UserConnection user, BungeeServerInfo target) {
+        this.connector = connector;
         this.bungee = bungee;
         this.user = user;
         this.target = target;
@@ -34,7 +34,7 @@ public class ReconnectChannelInitializer extends ChannelInitializer<Channel> {
                 new MinecraftDecoder(Protocol.HANDSHAKE, false, user.getPendingConnection().getVersion()));
         ch.pipeline().addAfter(PipelineUtils.FRAME_PREPENDER, PipelineUtils.PACKET_ENCODER,
                 new MinecraftEncoder(Protocol.HANDSHAKE, false, user.getPendingConnection().getVersion()));
-        ch.pipeline().get(HandlerBoss.class).setHandler(new ReconnectServerConnector(connecter, bungee, user, target));
+        ch.pipeline().get(HandlerBoss.class).setHandler(new ReconnectServerConnector(connector, bungee, user, target));
     }
     
 }
