@@ -261,6 +261,8 @@ public class Reconnect extends Plugin implements Listener {
     public void onDisconnect(PlayerDisconnectEvent e) {
         Reconnecter re = getReconnecterFor(e.getPlayer().getUniqueId());
         if (re != null) {
+            getLogger().info("Cancelled reconnect for \"" + re.getUser().getName() + "\" on \""
+                            + re.getServer().getInfo().getName() + "\" as they have disconnected");
             re.cancel(true);
         }
     }

@@ -265,28 +265,28 @@ public class Reconnecter {
             
             // connect
             reconnect.debug(Reconnecter.this, "connecting...");
-            ChannelFuture future = bootstrap.connect();
+            synchronized (channelSync) {
+                tryCloseChannel(channelFuture);
+                channelFuture = bootstrap.connect();
+            }
             
             try {
                 // wait for the future to finish or fail for no longer than reconnect timeout
-                future.get(reconnect.getReconnectTimeout(), TimeUnit.MILLISECONDS);
+                channelFuture.get(reconnect.getReconnectTimeout(), TimeUnit.MILLISECONDS);
                 
                 synchronized (channelSync) {
-                    if (isCancelled) {
+                    if (isCancelled || !user.isConnected()) {
                         reconnect.debug(Reconnecter.this, "post-connect cancelled check returned true");
-                        tryCloseChannel(future);
+                        tryCloseChannel(channelFuture);
                         return;
                     }
                     reconnect.debug(Reconnecter.this, "connection established.");
-                    // ensure old future is closed
-                    tryCloseChannel(channelFuture);
-                    channelFuture = future;
                     lastChannelTime = System.nanoTime();
                 }
             } catch (Exception e) { // we ignore exceptions here as many will be thrown as some attempts fail
                 reconnect.debug(Reconnecter.this, "exception connecting", e);
                 dropHolder();
-                closeChannel(future);
+                closeChannel(channelFuture);
             }
             
         } catch (Exception e) { // if any other exception occurs here log it.
