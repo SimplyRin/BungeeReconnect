@@ -107,7 +107,6 @@ public class Reconnecter {
                     reconnect.debug(Reconnecter.this, "reconnecter has exceeded max reconnect time");
                     // Proceed with plan B :(
                     failReconnect();
-                    return;
                 } else {
                     // Check if the future is null
                     if (future != null) {
@@ -133,8 +132,8 @@ public class Reconnecter {
                     } else {
                         retry(Math.max(1, TimeUnit.NANOSECONDS.toMillis(nextFutureTime - ctime)));
                     }
-                    return;
                 }
+                return;
             } else {
                 reconnect.debug(Reconnecter.this, "status check returned false");
             } // Otherwise cancel this reconnecter as it ain't needed no more
@@ -198,10 +197,8 @@ public class Reconnecter {
         // as keepAlive Packets)
         startSendingUpdates();
         // invoke the "run" runnable after the delay before trying
-        
-        // set dimension change to true and dimension to null
-        user.setDimensionChange(true);
-        user.setDimension(null);
+
+        user.init();
         
         retry(reconnect.getDelayBeforeTrying());
     }
@@ -231,8 +228,7 @@ public class Reconnecter {
     }
     
     /**
-     * Abstracted logic that is called every time a new connection attempt should be
-     * made
+     * Abstracted logic that is called every time a new connection attempt should be made
      */
     @SuppressWarnings("deprecation")
     private synchronized void tryReconnect() {
@@ -257,7 +253,7 @@ public class Reconnecter {
             // Create channel initializer.
             ChannelInitializer<Channel> initializer = new ReconnectChannelInitializer(this, bungee, user, targetInfo);
             
-            // Create a new Netty Bootstrap that contains the ChannelInitializer and the ChannelFutureListener.
+            // Create a new Netty Bootstrap with the ReconnectChannelInitializer that uses ReconnectServerConnector
             Bootstrap bootstrap = new Bootstrap()
                     .channel(MyPipelineUtils.getChannel(targetInfo.getAddress()))
                     .group(currentServer.getCh().getHandle().eventLoop())
@@ -265,9 +261,8 @@ public class Reconnecter {
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, reconnect.getReconnectTimeout())
                     .remoteAddress(targetInfo.getAddress());
             
-            if (user.getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows()
-                    && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress) {
-                bootstrap.localAddress(user.getPendingConnection().getListener().getHost().getHostString(), 0);
+            if (user.getPendingConnection().getListener().isSetLocalAddress() && user.getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress && !PlatformDependent.isWindows()) {
+                bootstrap.localAddress(((InetSocketAddress) user.getPendingConnection().getListener().getSocketAddress()).getHostString(), 0);
             }
             
             // connect
@@ -275,7 +270,7 @@ public class Reconnecter {
             ChannelFuture future = bootstrap.connect();
             
             try {
-                // wait for the future to finish or fail for no longer then reconnect timeout
+                // wait for the future to finish or fail for no longer than reconnect timeout
                 future.get(reconnect.getReconnectTimeout(), TimeUnit.MILLISECONDS);
                 
                 synchronized (channelSync) {
@@ -498,7 +493,7 @@ public class Reconnecter {
     }
     
     /**
-     * gets the time left before {@link Reconnect#getMaxReconnectTime()} expires
+     * gets the time left before {@link Reconnect#getMaxReconnectNanos()} expires
      * 
      * @returns The remaining time in nanoseconds
      */
@@ -508,7 +503,7 @@ public class Reconnecter {
     }
     
     /**
-     * @returns true if {@link Reconnect#getMaxReconnectTime()} has expired, false
+     * @returns true if {@link Reconnect#getMaxReconnectNanos()} has expired, false
      *          otherwise
      */
     public boolean hasTimedOut() {
@@ -639,7 +634,7 @@ public class Reconnecter {
     
     /**
      * Cancels this reconnecter Note: if the player is already connecting to the
-     * server this will not stop it. see also {@link Reconnecter#cancel(force)}
+     * server this will not stop it. see also {@link Reconnecter#cancel(boolean force)}
      */
     public void cancel() {
         cancel(false);
