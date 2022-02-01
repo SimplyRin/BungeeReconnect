@@ -197,8 +197,6 @@ public class Reconnecter {
         // as keepAlive Packets)
         startSendingUpdates();
         // invoke the "run" runnable after the delay before trying
-
-        user.init();
         
         retry(reconnect.getDelayBeforeTrying());
     }
