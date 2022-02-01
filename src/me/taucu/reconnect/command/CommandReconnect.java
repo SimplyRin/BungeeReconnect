@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 
 import me.taucu.reconnect.Reconnect;
+import me.taucu.reconnect.net.DownstreamInboundHandler;
 import me.taucu.reconnect.util.CmdUtil;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -50,11 +51,6 @@ public class CommandReconnect extends Command implements TabExecutor {
             .append("Testing reconnect")
             .create();
     
-    private static final BaseComponent[] cmdFeedbackTestingFalse = new ComponentBuilder()
-            .color(ChatColor.RED)
-            .append("Not reconnecting because it's an ignored server, or the reconnect event has been cancelled")
-            .create();
-    
     private static final BaseComponent[] cmdFeedbackTestingConsoleError = new ComponentBuilder()
             .color(ChatColor.RED)
             .append("you must use this command in-game")
@@ -81,9 +77,7 @@ public class CommandReconnect extends Command implements TabExecutor {
                 if (sender instanceof UserConnection) {
                     sender.sendMessage(cmdFeedbackTesting);
                     UserConnection ucon = (UserConnection) sender;
-                    if (!instance.reconnectIfApplicable(ucon, ucon.getServer())) {
-                        sender.sendMessage(cmdFeedbackTestingFalse);
-                    }
+                    ucon.getServer().getCh().close();
                 } else {
                     sender.sendMessage(cmdFeedbackTestingConsoleError);
                 }
