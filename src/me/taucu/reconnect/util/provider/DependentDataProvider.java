@@ -3,10 +3,14 @@ package me.taucu.reconnect.util.provider;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+
+import com.google.common.io.ByteStreams;
 
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
@@ -62,10 +66,10 @@ public class DependentDataProvider {
                 continue;
             }
 
-            FileOutputStream out = new FileOutputStream(file);
-            out.write(
-                plugin.getResourceAsStream("lang/" + filename).readAllBytes());
-            out.close();
+            try (InputStream is = plugin.getResourceAsStream("lang/" + filename); OutputStream os = new FileOutputStream(file)) {
+                ByteStreams.copy(is, os);
+            }
+  
         }
     }    
 
