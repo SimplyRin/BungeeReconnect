@@ -412,7 +412,7 @@ public class Reconnecter {
         // Send fancy action bar message if it's enabled in config, otherwise reset the
         // connecting action bar message.
         if (!reconnect.getFailedActionBar().isEmpty()) {
-            sendFailedActionBar(user);
+            sendFailedActionBar();
         } else {
             user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
         }
@@ -464,7 +464,7 @@ public class Reconnecter {
                 
                 // Send fancy Action Bar Message
                 if (!reconnect.getReconnectingActionBar().isEmpty()) {
-                    sendReconnectActionBar(user);
+                    sendReconnectActionBar();
                 }
                 
             } else {
@@ -475,7 +475,7 @@ public class Reconnecter {
                 
                 // Send fancy Action Bar Message
                 if (!reconnect.getConnectingActionBar().isEmpty()) {
-                    sendConnectActionBar(user);
+                    sendConnectActionBar();
                 }
             }
             // Loop
@@ -517,7 +517,7 @@ public class Reconnecter {
     /**
      * Sends an Action Bar Message containing the reconnect-text to the player.
      */
-    private void sendReconnectActionBar(UserConnection user) {
+    private void sendReconnectActionBar() {        
         user.sendMessage(ChatMessageType.ACTION_BAR,
                 new TextComponent(reconnect.animate(this, reconnect.getReconnectingActionBar())));
     }
@@ -525,7 +525,7 @@ public class Reconnecter {
     /**
      * Sends an Action Bar Message containing the connect-text to the player.
      */
-    private void sendConnectActionBar(UserConnection user) {
+    private void sendConnectActionBar() {
         user.sendMessage(ChatMessageType.ACTION_BAR,
                 new TextComponent(reconnect.animate(this, reconnect.getConnectingActionBar())));
     }
@@ -533,7 +533,7 @@ public class Reconnecter {
     /**
      * Sends an Action Bar Message containing the failed-text to the player.
      */
-    private void sendFailedActionBar(final UserConnection user) {
+    private void sendFailedActionBar() {
         user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(reconnect.getFailedActionBar()));
     }
     
