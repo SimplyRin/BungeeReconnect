@@ -17,6 +17,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.util.internal.PlatformDependent;
+import lombok.Setter;
 import me.taucu.reconnect.net.ReconnectChannelInitializer;
 import me.taucu.reconnect.util.MyPipelineUtils;
 import me.taucu.reconnect.util.provider.DependentData;
@@ -46,7 +47,7 @@ public class Reconnecter {
     private final BungeeServerInfo targetInfo;
 
     //user can change locale hence change provider(todo)
-    private DependentData data;
+    @Setter private DependentData data;
 
     // The time start() was called/object constructed.
     private long startTime = System.nanoTime();
@@ -84,7 +85,8 @@ public class Reconnecter {
      * @param user     The user to reconnect
      * @param server   The server connection the user will try to reconnect to
      */
-    public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server) {
+
+    public Reconnecter(Reconnect instance, ProxyServer bungee, UserConnection user, ServerConnection server, DependentData data) {
         this.reconnect = instance;
         this.log = instance.getLogger();
         this.bungee = bungee;
@@ -93,6 +95,7 @@ public class Reconnecter {
         this.targetInfo = server.getInfo();
         this.updateRate = instance.getTitleUpdateRate();
         this.titleStayTime = (int) Math.ceil(this.updateRate / 50D) + 20;
+        this.data = data;
     }
     
     private final Runnable run = new Runnable() {

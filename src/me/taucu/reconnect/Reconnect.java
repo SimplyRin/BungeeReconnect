@@ -9,7 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Filter;
@@ -26,6 +29,8 @@ import com.google.common.io.Files;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
+import me.taucu.reconnect.util.provider.DependentData;
+import me.taucu.reconnect.util.provider.DependentDataProvider;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
@@ -35,6 +40,7 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.event.SettingsChangedEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -146,6 +152,22 @@ public class Reconnect extends Plugin implements Listener {
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
     }
     
+    DependentDataProvider provider = new DependentDataProvider(this);
+    
+    //by using weak hash map we dont care about clean up
+    Map<UUID, Locale> localeByUUID = new WeakHashMap<>();
+
+    @EventHandler
+    public void onSettingsChange(SettingsChangedEvent event) {
+        ProxiedPlayer player = event.getPlayer();        
+        localeByUUID.put(player.getUniqueId(), player.getLocale());
+
+        Reconnecter recon = reconnecters.get(player.getUniqueId());
+        if (recon != null) {
+            recon.setData(provider.getForLocale(player.getLocale()));
+        } 
+    }
+
     private void processConfig(Configuration configuration, Logger log) throws Exception {
         
         this.debug = configuration.getBoolean("debug");
@@ -158,7 +180,9 @@ public class Reconnect extends Plugin implements Listener {
         } else {
             log.warning("Animations configeration is null. Animations will not work until this is resolved.");
         }
+
         
+        provider.load();
 
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
@@ -335,7 +359,12 @@ public class Reconnect extends Plugin implements Listener {
      * @param server The Server the User should be connected to.
      */
     private synchronized void reconnect(UserConnection user, ServerConnection server) {
-        Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
+
+        DependentData data = provider.getForLocale(
+            localeByUUID.get(user.getUniqueId()));
+        
+        Reconnecter reconnecter = new Reconnecter(
+            this, getProxy(), user, server, data == null ? provider.getDefault() : data);
         Reconnecter current = null;
         synchronized (reconnecters) {
             current = reconnecters.get(user.getUniqueId());
@@ -467,6 +496,7 @@ public class Reconnect extends Plugin implements Listener {
         return queueManager.queue(server, who, timeout, timeoutUnit);
     }
     
+   
     
     public void fixLogger() {
         getLogger().setFilter(new Filter() {
