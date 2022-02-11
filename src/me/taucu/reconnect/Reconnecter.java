@@ -19,6 +19,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.util.internal.PlatformDependent;
 import me.taucu.reconnect.net.ReconnectChannelInitializer;
 import me.taucu.reconnect.util.MyPipelineUtils;
+import me.taucu.reconnect.util.provider.DependentData;
+import me.taucu.reconnect.util.provider.TitleViewEntry;
 import me.taucu.reconnect.util.scheduler.Sched;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnection;
@@ -42,7 +44,10 @@ public class Reconnecter {
     private final UserConnection user;
     private final ServerConnection currentServer;
     private final BungeeServerInfo targetInfo;
-    
+
+    //user can change locale hence change provider(todo)
+    private DependentData data;
+
     // The time start() was called/object constructed.
     private long startTime = System.nanoTime();
     
@@ -402,16 +407,18 @@ public class Reconnecter {
         
         currentServer.setObsolete(true);
         
+
+        TitleViewEntry fail = data.getFailTitle();
         // Send fancy title if it's enabled in config, otherwise reset the connecting
         // title.
-        if (!(reconnect.getFailedTitle().isEmpty() && reconnect.getFailedSubtitle().isEmpty())) {
+        if (!(fail.getActionBar().isEmpty() && fail.getSubTitle().isEmpty())) {
             user.sendTitle(createFailedTitle());
         } else {
             user.sendTitle(ProxyServer.getInstance().createTitle().reset());
         }
         // Send fancy action bar message if it's enabled in config, otherwise reset the
         // connecting action bar message.
-        if (!reconnect.getFailedActionBar().isEmpty()) {
+        if (!fail.getActionBar().isEmpty()) {
             sendFailedActionBar();
         } else {
             user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
@@ -420,7 +427,7 @@ public class Reconnecter {
         reconnect.fallback(user, fallbacks.iterator(), new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                user.disconnect(reconnect.getFailedKickMessage());
+                user.disconnect(data.getFailKickMessage());
                 return null;
             }
         });
@@ -453,28 +460,31 @@ public class Reconnecter {
      * action bars and keep alives. see also: {@link Reconnecter#queueUpdate()}
      */
     private void update() {
+        TitleViewEntry reconn = data.getReconnectionTitle();
+        TitleViewEntry conn = data.getConnectionTitle();
+
         if (statusCheck() && updatesEnabled && !isCancelled) {
             // Send keep alive packet so user will not timeout.
             user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
             if (channelFuture == null) {
                 // Send fancy Title
-                if (!(reconnect.getReconnectingTitle().isEmpty() && reconnect.getReconnectingSubtitle().isEmpty())) {
+                if (!(reconn.getTitle().isEmpty() && reconn.getSubTitle().isEmpty())) {
                     createReconnectTitle().send(user);
                 }
                 
                 // Send fancy Action Bar Message
-                if (!reconnect.getReconnectingActionBar().isEmpty()) {
+                if (!reconn.getActionBar().isEmpty()) {
                     sendReconnectActionBar();
                 }
                 
             } else {
                 // Send fancy Title
-                if (!(reconnect.getConnectingTitle().isEmpty() && reconnect.getConnectingSubtitle().isEmpty())) {
+                if (!(conn.getTitle().isEmpty() && conn.getSubTitle().isEmpty())) {
                     createConnectingTitle().send(user);
                 }
                 
                 // Send fancy Action Bar Message
-                if (!reconnect.getConnectingActionBar().isEmpty()) {
+                if (!conn.getActionBar().isEmpty()) {
                     sendConnectActionBar();
                 }
             }
@@ -519,7 +529,7 @@ public class Reconnecter {
      */
     private void sendReconnectActionBar() {        
         user.sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(reconnect.animate(this, reconnect.getReconnectingActionBar())));
+                new TextComponent(reconnect.animate(this, data.getReconnectionTitle().getActionBar())));
     }
     
     /**
@@ -527,14 +537,14 @@ public class Reconnecter {
      */
     private void sendConnectActionBar() {
         user.sendMessage(ChatMessageType.ACTION_BAR,
-                new TextComponent(reconnect.animate(this, reconnect.getConnectingActionBar())));
+                new TextComponent(reconnect.animate(this, data.getConnectionTitle().getActionBar())));
     }
     
     /**
      * Sends an Action Bar Message containing the failed-text to the player.
      */
     private void sendFailedActionBar() {
-        user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(reconnect.getFailedActionBar()));
+        user.sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(data.getFailTitle().getActionBar()));
     }
     
     /**
@@ -544,8 +554,10 @@ public class Reconnecter {
      */
     private Title createReconnectTitle() {
         Title title = ProxyServer.getInstance().createTitle();
-        title.title(new TextComponent(reconnect.animate(this, reconnect.getReconnectingTitle())));
-        title.subTitle(new TextComponent(reconnect.animate(this, reconnect.getReconnectingSubtitle())));
+        TitleViewEntry reconn = data.getReconnectionTitle();
+
+        title.title(new TextComponent(reconnect.animate(this, reconn.getTitle())));
+        title.subTitle(new TextComponent(reconnect.animate(this, reconn.getSubTitle())));
         title.stay(titleStayTime);
         title.fadeIn(0);
         title.fadeOut(1);
@@ -559,9 +571,10 @@ public class Reconnecter {
      * @return a Title that can be send to the player.
      */
     private Title createConnectingTitle() {
+        TitleViewEntry conn = data.getConnectionTitle();
         Title title = ProxyServer.getInstance().createTitle();
-        title.title(new TextComponent(reconnect.animate(this, reconnect.getConnectingTitle())));
-        title.subTitle(new TextComponent(reconnect.animate(this, reconnect.getConnectingSubtitle())));
+        title.title(new TextComponent(reconnect.animate(this, conn.getTitle())));
+        title.subTitle(new TextComponent(reconnect.animate(this, conn.getSubTitle())));
         title.stay(titleStayTime);
         title.fadeIn(0);
         title.fadeOut(1);
@@ -575,9 +588,10 @@ public class Reconnecter {
      * @return a Title that can be send to the player.
      */
     private Title createFailedTitle() {
+        TitleViewEntry fail = data.getFailTitle();
         Title title = ProxyServer.getInstance().createTitle();
-        title.title(new TextComponent(reconnect.getFailedTitle()));
-        title.subTitle(new TextComponent(reconnect.animate(this, reconnect.getFailedSubtitle())));
+        title.title(new TextComponent(fail.getTitle()));
+        title.subTitle(new TextComponent(reconnect.animate(this, fail.getSubTitle())));
         title.stay(titleStayTime);
         title.fadeIn(0);
         title.fadeOut(1);

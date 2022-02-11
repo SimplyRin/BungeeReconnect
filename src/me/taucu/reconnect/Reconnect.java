@@ -51,12 +51,6 @@ public class Reconnect extends Plugin implements Listener {
     
     private Animations animations = new Animations(this);
     
-    private String reconnectingTitle = null, reconnectingSubtitle = null, reconnectingActionBar = null;
-    
-    private String connectingTitle = null, connectingSubtitle = null, connectingActionBar = null;
-    
-    private String failedTitle = null, failedSubtitle = null, failedActionBar = null, failedKickMessage = null;
-    
     private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
     
@@ -165,28 +159,7 @@ public class Reconnect extends Plugin implements Listener {
             log.warning("Animations configeration is null. Animations will not work until this is resolved.");
         }
         
-        // obtain reconnecting formatting from config
-        reconnectingTitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.title"));
-        reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.subtitle"));
-        reconnectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.actionbar"));
-        
-        // obtain connecting formatting from config
-        connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title"));
-        connectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.subtitle"));
-        connectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.actionbar"));
-        
-        // obtain failed formatting from config
-        failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title"));
-        failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle"));
-        failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar"));
-        failedKickMessage = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("failed-text.kick-message"));
-        
+
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
         delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 500);
@@ -423,39 +396,7 @@ public class Reconnect extends Plugin implements Listener {
         }, Reason.SERVER_DOWN_REDIRECT);
         user.sendMessage(bungee.getTranslation("server_went_down"));
     }
-    
-    public String getReconnectingTitle() {
-        return reconnectingTitle;
-    }
-    
-    public String getReconnectingActionBar() {
-        return reconnectingActionBar;
-    }
-    
-    public String getConnectingTitle() {
-        return connectingTitle;
-    }
-    
-    public String getConnectingSubtitle() {
-        return connectingSubtitle;
-    }
-    
-    public String getConnectingActionBar() {
-        return connectingActionBar;
-    }
-    
-    public String getFailedTitle() {
-        return failedTitle;
-    }
-    
-    public String getFailedActionBar() {
-        return failedActionBar;
-    }
-    
-    public String getFailedKickMessage() {
-        return failedKickMessage;
-    }
-    
+
     public int getTitleUpdateRate() {
         return titleUpdateRate;
     }
@@ -499,15 +440,7 @@ public class Reconnect extends Plugin implements Listener {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
-    
-    public String getReconnectingSubtitle() {
-        return reconnectingSubtitle;
-    }
-    
-    public String getFailedSubtitle() {
-        return failedSubtitle;
-    }
-    
+  
     public Animations getAnimations() {
         return animations;
     }
