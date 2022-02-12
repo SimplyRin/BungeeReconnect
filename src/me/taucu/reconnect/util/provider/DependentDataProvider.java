@@ -101,6 +101,9 @@ public class DependentDataProvider {
     }
 
     public DependentData getForLocale(Locale locale) {
+        if (locale == null) {
+            return null;
+        }
         DependentData data = dataByLocale.get(locale);
         if (data == null) {
             return getDefault();
