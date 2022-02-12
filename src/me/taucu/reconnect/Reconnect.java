@@ -126,7 +126,7 @@ public class Reconnect extends Plugin implements Listener {
             if (configFile.exists()) {
                 Configuration config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
                 int configVersion = config.getInt("version");
-                if (ConfigUtil.checkConfigVersion(config, internalConfig)) {
+                if (!ConfigUtil.checkConfigVersion(config, internalConfig)) {
                     log.info("Found an old config version! Replacing with new one...");
                     File oldConfigFile = ConfigUtil.renameOldConfig(configFile);
                     log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
