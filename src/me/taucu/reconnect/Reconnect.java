@@ -125,7 +125,6 @@ public class Reconnect extends Plugin implements Listener {
             // if config file exists check if it needs updating
             if (configFile.exists()) {
                 Configuration config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-                int configVersion = config.getInt("version");
                 if (!ConfigUtil.checkConfigVersion(config, internalConfig)) {
                     log.info("Found an old config version! Replacing with new one...");
                     File oldConfigFile = ConfigUtil.renameOldConfig(configFile);
@@ -140,7 +139,7 @@ public class Reconnect extends Plugin implements Listener {
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
     }
 
-    private void processConfig(Configuration configuration, Logger log) throws Exception {
+    private void processConfig(Configuration configuration, Logger log) {
         
         this.debug = configuration.getBoolean("debug");
         
@@ -326,7 +325,7 @@ public class Reconnect extends Plugin implements Listener {
      */
     public ArrayList<Reconnector> getReconnectors() {
         synchronized (reconnectors) {
-            return new ArrayList<Reconnector>(reconnectors.values());
+            return new ArrayList<>(reconnectors.values());
         }
     }
     
@@ -355,7 +354,7 @@ public class Reconnect extends Plugin implements Listener {
         
         Reconnector reconnector = new Reconnector(
             this, getProxy(), user, server, data == null ? langProvider.getDefault() : data);
-        Reconnector current = null;
+        Reconnector current;
         synchronized (reconnectors) {
             current = reconnectors.get(user.getUniqueId());
             reconnectors.put(user.getUniqueId(), reconnector);
@@ -371,7 +370,7 @@ public class Reconnect extends Plugin implements Listener {
      *
      * @param uuid The UniqueId of the User.
      */
-    void cancelReconnectorFor(UUID uuid) {
+    public void cancelReconnectorFor(UUID uuid) {
         Reconnector task;
         synchronized (reconnectors) {
             task = reconnectors.remove(uuid);
