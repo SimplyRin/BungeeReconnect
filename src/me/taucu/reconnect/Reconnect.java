@@ -31,9 +31,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Filter;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -292,10 +290,10 @@ public class Reconnect extends Plugin implements Listener {
      * @return true if a reconnect will occur, false otherwise
      */
     public boolean reconnectIfApplicable(UserConnection ucon, ServerConnection server) {
-        if (!isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
-            return reconnectIfOnline(ucon, server);
-        } else {
+        if (isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
             debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
+        } else {
+            return reconnectIfOnline(ucon, server);
         }
         return false;
     }
@@ -465,7 +463,7 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public List<ServerInfo> getFallbackServersFor(UserConnection user) {
-        List<ServerInfo> servers = new ArrayList<ServerInfo>();
+        List<ServerInfo> servers = new ArrayList<>();
         user.getPendingConnection().getListener().getServerPriority()
         .forEach(s -> servers.add(bungee.getServerInfo(s)));
         return servers;
@@ -476,24 +474,20 @@ public class Reconnect extends Plugin implements Listener {
      * @param who         the player that is waiting
      * @param timeout     how long will you wait in the queue
      * @param timeoutUnit The timeunit for timeout
-     * @returns holder that can be unlocked when done.
+     * @return holder that can be unlocked when done.
      */
     public Holder waitForConnect(ServerInfo server, UserConnection who, long timeout, TimeUnit timeoutUnit) {
         return queueManager.queue(server, who, timeout, timeoutUnit);
     }
     
     public void fixLogger() {
-        getLogger().setFilter(new Filter() {
-            
-            @Override
-            public boolean isLoggable(LogRecord r) {
-                // eat mega shit dicks bungee
-                if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
-                    r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
-                    r.setLevel(Level.INFO);
-                }
-                return true;
+        getLogger().setFilter(r -> {
+            // eat mega shit dicks bungee
+            if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
+                r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
+                r.setLevel(Level.INFO);
             }
+            return true;
         });
     }
     
@@ -514,7 +508,7 @@ public class Reconnect extends Plugin implements Listener {
     public void debug(String m) {
         if (debug) {
             StackTraceElement element = Thread.currentThread().getStackTrace()[2];
-            String clazzName = null;
+            String clazzName;
             try {
                 clazzName = Class.forName(element.getClassName()).getSimpleName();
             } catch (ClassNotFoundException e) {
