@@ -1,19 +1,10 @@
 package me.taucu.reconnect;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
-import java.util.WeakHashMap;
+import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Filter;
 import java.util.logging.Level;
@@ -23,8 +14,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import com.google.common.base.Strings;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
@@ -67,6 +58,9 @@ public class Reconnect extends Plugin implements Listener {
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
+
+    DependentDataProvider langProvider = new DependentDataProvider(this);
+    ConcurrentHashMap<Object, Locale> localeByUUID = new ConcurrentHashMap<>();
     
     /**
      * A HashMap containing all reconnect tasks.
@@ -149,11 +143,6 @@ public class Reconnect extends Plugin implements Listener {
         
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
     }
-    
-    DependentDataProvider provider = new DependentDataProvider(this);
-    
-    //by using weak hash map we dont care about clean up
-    Map<UUID, Locale> localeByUUID = new WeakHashMap<>();
 
     @EventHandler
     public void onSettingsChange(SettingsChangedEvent event) {
@@ -162,7 +151,7 @@ public class Reconnect extends Plugin implements Listener {
 
         Reconnecter recon = getReconnecterFor(player.getUniqueId());
         if (recon != null) {
-            recon.setData(provider.getForLocale(player.getLocale()));
+            recon.setData(langProvider.getForLocale(player.getLocale()));
         } 
     }
 
@@ -184,8 +173,8 @@ public class Reconnect extends Plugin implements Listener {
             log.warning("default locale is invalid. Defaulting to \"en_US\"");
             defaultLocale = new String[] {"en", "US"};
         }
-        provider.setDefaultLocale(new Locale(defaultLocale[0], defaultLocale[1]));
-        provider.load();
+        langProvider.setDefaultLocale(new Locale(defaultLocale[0], defaultLocale[1]));
+        langProvider.load();
 
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
@@ -255,6 +244,7 @@ public class Reconnect extends Plugin implements Listener {
                             + re.getServer().getInfo().getName() + "\" as they have disconnected");
             re.cancel(true);
         }
+        localeByUUID.remove(e.getPlayer().getUniqueId());
     }
     
     private boolean resolveMode(String mode) {
@@ -364,11 +354,11 @@ public class Reconnect extends Plugin implements Listener {
      */
     private synchronized void reconnect(UserConnection user, ServerConnection server) {
 
-        DependentData data = provider.getForLocale(
+        DependentData data = langProvider.getForLocale(
             localeByUUID.get(user.getUniqueId()));
         
         Reconnecter reconnecter = new Reconnecter(
-            this, getProxy(), user, server, data == null ? provider.getDefault() : data);
+            this, getProxy(), user, server, data == null ? langProvider.getDefault() : data);
         Reconnecter current = null;
         synchronized (reconnecters) {
             current = reconnecters.get(user.getUniqueId());
