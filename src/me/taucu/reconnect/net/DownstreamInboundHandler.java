@@ -1,7 +1,5 @@
 package me.taucu.reconnect.net;
 
-import java.util.logging.Level;
-
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -18,6 +16,8 @@ import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.DefinedPacket;
 import net.md_5.bungee.protocol.PacketWrapper;
 import net.md_5.bungee.protocol.packet.Kick;
+
+import java.util.logging.Level;
 
 public class DownstreamInboundHandler extends ChannelHandlerAdapter implements ChannelInboundHandler {
     
