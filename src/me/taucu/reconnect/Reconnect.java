@@ -176,7 +176,7 @@ public class Reconnect extends Plugin implements Listener {
             animations.deserialize(animationsConfig);
             this.animations = animations;
         } else {
-            log.warning("Animations configeration is null. Animations will not work until this is resolved.");
+            log.warning("Animations configuration is null. Animations will not work until this is resolved.");
         }
 
         String[] defaultLocale = configuration.getString("default-locale").split("_");
