@@ -182,7 +182,12 @@ public class Reconnect extends Plugin implements Listener {
             log.warning("Animations configeration is null. Animations will not work until this is resolved.");
         }
 
-        
+        String[] defaultLocale = configuration.getString("default-locale").split("_");
+        if (defaultLocale.length != 2) {
+            log.warning("default locale is invalid. Defaulting to \"en-US\"");
+            defaultLocale = new String[] {"en", "US"};
+        }
+        provider.setDefaultLocale(new Locale(defaultLocale[0], defaultLocale[1]));
         provider.load();
 
         // obtain delays and timeouts from config

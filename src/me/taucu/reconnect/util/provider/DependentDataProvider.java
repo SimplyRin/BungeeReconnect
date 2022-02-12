@@ -12,6 +12,9 @@ import java.util.Map;
 
 import com.google.common.io.ByteStreams;
 
+import net.md_5.bungee.config.Configuration;
+import net.md_5.bungee.config.ConfigurationProvider;
+import net.md_5.bungee.config.YamlConfiguration;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
@@ -30,10 +33,6 @@ public class DependentDataProvider {
     Locale defaultLocale = new Locale("en", "US");
 
     final Plugin plugin;
-
-    Yaml yaml = new Yaml(
-        new Constructor(DependentData.class)
-    );
     
     Path getLocaleFolder() {
         return plugin.getDataFolder().toPath()
@@ -42,13 +41,21 @@ public class DependentDataProvider {
 
     @SneakyThrows
     void loadFiles() {
+        ConfigurationProvider provider = ConfigurationProvider.getProvider(YamlConfiguration.class);
         for (File file : getLocaleFolder().toFile().listFiles()) {
             String[] localeEntry = file.getName()
                 .replace(".yml", "")
                 .split("_");
 
+            Configuration langFile = provider.load(file);
+
             dataByLocale.put(
-                new Locale(localeEntry[0], localeEntry[1]), yaml.<DependentData>load(new FileInputStream(file))
+                new Locale(localeEntry[0], localeEntry[1]), new DependentData(
+                        new TitleViewEntry(langFile.getString("reconnectionTitle.title"), langFile.getString("reconnectionTitle.subTitle"), langFile.getString("reconnectionTitle.actionBar")),
+                        new TitleViewEntry(langFile.getString("connectionTitle.title"), langFile.getString("connectionTitle.subTitle"), langFile.getString("connectionTitle.actionBar")),
+                        new TitleViewEntry(langFile.getString("failTitle.title"), langFile.getString("failTitle.subTitle"), langFile.getString("failTitle.actionBar")),
+                        langFile.getString("failKickMessage")
+                    )
                 );
         }
     }
@@ -72,6 +79,10 @@ public class DependentDataProvider {
   
         }
     }    
+
+    public void setDefaultLocale(Locale defaultLocale) {
+        this.defaultLocale = defaultLocale;
+    }
 
     public void load() {
         getLocaleFolder().toFile().mkdir();
