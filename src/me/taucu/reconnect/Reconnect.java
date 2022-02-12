@@ -9,7 +9,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Filter;
@@ -26,6 +29,8 @@ import com.google.common.io.Files;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
+import me.taucu.reconnect.util.provider.DependentData;
+import me.taucu.reconnect.util.provider.DependentDataProvider;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.Callback;
@@ -36,6 +41,7 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.PlayerDisconnectEvent;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.event.SettingsChangedEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -51,12 +57,6 @@ public class Reconnect extends Plugin implements Listener {
     private boolean debug = false;
     
     private Animations animations = new Animations(this);
-    
-    private String reconnectingTitle = null, reconnectingSubtitle = null, reconnectingActionBar = null;
-    
-    private String connectingTitle = null, connectingSubtitle = null, connectingActionBar = null;
-    
-    private String failedTitle = null, failedSubtitle = null, failedActionBar = null, failedKickMessage = null;
     
     private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
@@ -153,6 +153,22 @@ public class Reconnect extends Plugin implements Listener {
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
     }
     
+    DependentDataProvider provider = new DependentDataProvider(this);
+    
+    //by using weak hash map we dont care about clean up
+    Map<UUID, Locale> localeByUUID = new WeakHashMap<>();
+
+    @EventHandler
+    public void onSettingsChange(SettingsChangedEvent event) {
+        ProxiedPlayer player = event.getPlayer();        
+        localeByUUID.put(player.getUniqueId(), player.getLocale());
+
+        Reconnecter recon = reconnecters.get(player.getUniqueId());
+        if (recon != null) {
+            recon.setData(provider.getForLocale(player.getLocale()));
+        } 
+    }
+
     private void processConfig(Configuration configuration, Logger log) throws Exception {
         
         this.debug = configuration.getBoolean("debug");
@@ -165,29 +181,10 @@ public class Reconnect extends Plugin implements Listener {
         } else {
             log.warning("Animations configeration is null. Animations will not work until this is resolved.");
         }
+
         
-        // obtain reconnecting formatting from config
-        reconnectingTitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.title"));
-        reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.subtitle"));
-        reconnectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.actionbar"));
-        
-        // obtain connecting formatting from config
-        connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title"));
-        connectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.subtitle"));
-        connectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.actionbar"));
-        
-        // obtain failed formatting from config
-        failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title"));
-        failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle"));
-        failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar"));
-        failedKickMessage = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("failed-text.kick-message"));
-        
+        provider.load();
+
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
         delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 500);
@@ -373,7 +370,12 @@ public class Reconnect extends Plugin implements Listener {
      * @param server The Server the User should be connected to.
      */
     private synchronized void reconnect(UserConnection user, ServerConnection server) {
-        Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
+
+        DependentData data = provider.getForLocale(
+            localeByUUID.get(user.getUniqueId()));
+        
+        Reconnecter reconnecter = new Reconnecter(
+            this, getProxy(), user, server, data == null ? provider.getDefault() : data);
         Reconnecter current = null;
         synchronized (reconnecters) {
             current = reconnecters.get(user.getUniqueId());
@@ -434,39 +436,7 @@ public class Reconnect extends Plugin implements Listener {
         }, Reason.SERVER_DOWN_REDIRECT);
         user.sendMessage(bungee.getTranslation("server_went_down"));
     }
-    
-    public String getReconnectingTitle() {
-        return reconnectingTitle;
-    }
-    
-    public String getReconnectingActionBar() {
-        return reconnectingActionBar;
-    }
-    
-    public String getConnectingTitle() {
-        return connectingTitle;
-    }
-    
-    public String getConnectingSubtitle() {
-        return connectingSubtitle;
-    }
-    
-    public String getConnectingActionBar() {
-        return connectingActionBar;
-    }
-    
-    public String getFailedTitle() {
-        return failedTitle;
-    }
-    
-    public String getFailedActionBar() {
-        return failedActionBar;
-    }
-    
-    public String getFailedKickMessage() {
-        return failedKickMessage;
-    }
-    
+
     public int getTitleUpdateRate() {
         return titleUpdateRate;
     }
@@ -510,15 +480,7 @@ public class Reconnect extends Plugin implements Listener {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
-    
-    public String getReconnectingSubtitle() {
-        return reconnectingSubtitle;
-    }
-    
-    public String getFailedSubtitle() {
-        return failedSubtitle;
-    }
-    
+  
     public Animations getAnimations() {
         return animations;
     }
@@ -545,6 +507,7 @@ public class Reconnect extends Plugin implements Listener {
         return queueManager.queue(server, who, timeout, timeoutUnit);
     }
     
+   
     
     public void fixLogger() {
         getLogger().setFilter(new Filter() {
