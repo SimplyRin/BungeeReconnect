@@ -163,7 +163,7 @@ public class Reconnect extends Plugin implements Listener {
         ProxiedPlayer player = event.getPlayer();        
         localeByUUID.put(player.getUniqueId(), player.getLocale());
 
-        Reconnecter recon = reconnecters.get(player.getUniqueId());
+        Reconnecter recon = getReconnecterFor(player.getUniqueId());
         if (recon != null) {
             recon.setData(provider.getForLocale(player.getLocale()));
         } 
