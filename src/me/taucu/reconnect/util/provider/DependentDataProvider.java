@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DependentDataProvider {
     
     Map<Locale, DependentData> dataByLocale = new ConcurrentHashMap<>();
+    Map<String, Locale> localeByLang = new ConcurrentHashMap<>();
 
     Locale defaultLocale = new Locale("en", "US");
 
@@ -35,7 +36,11 @@ public class DependentDataProvider {
     @SneakyThrows
     void loadFiles() {
         ConfigurationProvider provider = ConfigurationProvider.getProvider(YamlConfiguration.class);
-        Configuration defaultLang = provider.load(plugin.getResourceAsStream("lang/en_US.yml"));
+        Configuration defaultConf = provider.load(plugin.getResourceAsStream("lang/en_US.yml"));
+
+        ConcurrentHashMap<Locale, DependentData> dataByLocale = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, Locale> localeByLang = new ConcurrentHashMap<>();
+
         for (File file : getLocaleFolder().toFile().listFiles()) {
             String[] localeEntry = file.getName()
                 .replace(".yml", "")
@@ -43,7 +48,7 @@ public class DependentDataProvider {
 
             Configuration langConf = provider.load(file);
 
-            if (ConfigUtil.checkConfigVersion(langConf, defaultLang)) {
+            if (ConfigUtil.checkConfigVersion(langConf, defaultConf)) {
                 dataByLocale.put(
                         new Locale(localeEntry[0], localeEntry[1]), new DependentData(
                                 new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
@@ -52,10 +57,14 @@ public class DependentDataProvider {
                                 langConf.getString("failKickMessage")
                         )
                 );
+                dataByLocale.keySet().forEach(locale -> localeByLang.put(locale.getLanguage(), locale));
             } else {
                 plugin.getLogger().warning("lang file \"" + file.getName() + "\" is of an outdated config version and will not be loaded");
             }
         }
+
+        this.dataByLocale = dataByLocale;
+        this.localeByLang = localeByLang;
     }
 
     static final String [] langs = {
@@ -94,13 +103,21 @@ public class DependentDataProvider {
 
     public DependentData getForLocale(Locale locale) {
         if (locale == null) {
-            return null;
+            return getDefault();
         }
         DependentData data = dataByLocale.get(locale);
+        // if we can't find the exact locale, find the nearest one by language.
+        if (data == null) {
+            locale = localeByLang.get(locale.getLanguage());
+            if (locale != null) {
+                data = dataByLocale.get(locale);
+            }
+        }
         if (data == null) {
             return getDefault();
         } else {
             return data;
         }
     }
+
 }
