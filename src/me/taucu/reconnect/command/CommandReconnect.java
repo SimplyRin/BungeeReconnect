@@ -1,12 +1,6 @@
 package me.taucu.reconnect.command;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import me.taucu.reconnect.Reconnect;
-import me.taucu.reconnect.net.DownstreamInboundHandler;
 import me.taucu.reconnect.util.CmdUtil;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -15,6 +9,11 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class CommandReconnect extends Command implements TabExecutor {
     
@@ -57,7 +56,7 @@ public class CommandReconnect extends Command implements TabExecutor {
             .create();
     
     public CommandReconnect(Reconnect instance) {
-        super("bungee-reconnect", "reconnect.command", new String[] { "reconnect" });
+        super("bungee-reconnect", "reconnect.command", "reconnect");
         this.instance = instance;
     }
     
@@ -97,7 +96,7 @@ public class CommandReconnect extends Command implements TabExecutor {
     public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
         if (args.length > 0) {
             if (args.length > 1) {
-                return new ArrayList<String>();
+                return new ArrayList<>();
             } else {
                 return CmdUtil.copyPartialMatches(baseComplete, args[0]);
             }

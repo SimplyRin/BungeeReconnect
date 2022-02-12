@@ -63,22 +63,22 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+    public void channelRegistered(ChannelHandlerContext ctx) {
         ctx.fireChannelRegistered();
     }
     
     @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+    public void channelUnregistered(ChannelHandlerContext ctx) {
         ctx.fireChannelUnregistered();
     }
     
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         ctx.fireChannelActive();
     }
     
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         instance.debug(this, "HANDLE_CHANNEL_INACTIVE sameServer=" + (ucon.getServer() == server));
         if (ucon.isConnected()) {
             if (startedReconnecting) {
@@ -110,7 +110,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object obj) {
         if (obj instanceof PacketWrapper) {
             boolean fireNextRead = true;
             PacketWrapper wrapper = (PacketWrapper) obj;
@@ -165,22 +165,23 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+    public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.fireChannelReadComplete();
     }
     
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object obj) throws Exception {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object obj) {
         ctx.fireUserEventTriggered(obj);
     }
     
     @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) {
         ctx.fireChannelWritabilityChanged();
     }
     
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) throws Exception {
+    @SuppressWarnings("deprecation")
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) {
         if (ctx.channel().isActive() && ucon.isConnected()) {
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {

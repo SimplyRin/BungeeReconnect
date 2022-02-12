@@ -1,16 +1,5 @@
 package me.taucu.reconnect;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -33,6 +22,16 @@ import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.scheduler.ScheduledTask;
 import net.md_5.bungee.protocol.packet.KeepAlive;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Reconnector {
     
@@ -195,7 +194,7 @@ public class Reconnector {
         if (isRunning && !isCancelled) {
             return;
         }
-        reconnect.debug(this, "start invoked " + this.toString());
+        reconnect.debug(this, "start invoked " + this);
         isRunning = true;
         startTime = System.nanoTime();
         
@@ -236,7 +235,6 @@ public class Reconnector {
     /**
      * Abstracted logic that is called every time a new connection attempt should be made
      */
-    @SuppressWarnings("deprecation")
     private synchronized void tryReconnect() {
         try {
             
@@ -335,7 +333,7 @@ public class Reconnector {
     /**
      * Closes a channel while catching common exceptions.
      * 
-     * @param future
+     * @param future the future
      */
     public void tryCloseChannel(ChannelFuture future) {
         try {
@@ -351,9 +349,8 @@ public class Reconnector {
      * Used to cancel and close a nullable future
      * 
      * @param future The nullable future to close
-     * @throws Exception when and if an exception occurs
      */
-    public void closeChannel(ChannelFuture future) throws Exception {
+    public void closeChannel(ChannelFuture future) {
         synchronized (channelSync) {
             if (future != null) {
                 future.channel().close();
@@ -421,12 +418,9 @@ public class Reconnector {
             user.sendMessage(ChatMessageType.ACTION_BAR, EMPTY);
         }
         
-        reconnect.fallback(user, fallbacks.iterator(), new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-                user.disconnect(data.getFailKickMessage());
-                return null;
-            }
+        reconnect.fallback(user, fallbacks.iterator(), () -> {
+            user.disconnect(data.getFailKickMessage());
+            return null;
         });
     }
     
@@ -435,7 +429,7 @@ public class Reconnector {
      * {@link Reconnector#stopSendingUpdates()}
      */
     private void startSendingUpdates() {
-        if (updatesEnabled == false) {// Only allow invocation once
+        if (!updatesEnabled) {// Only allow invocation once
             updatesEnabled = true;
             update();
         }
@@ -447,9 +441,7 @@ public class Reconnector {
      * {@link Reconnector#update()}
      */
     private void queueUpdate() {
-        updatesTask = ProxyServer.getInstance().getScheduler().schedule(reconnect, () -> {
-            update();
-        }, updateRate, TimeUnit.MILLISECONDS);
+        updatesTask = ProxyServer.getInstance().getScheduler().schedule(reconnect, this::update, updateRate, TimeUnit.MILLISECONDS);
     }
     
     /**
@@ -506,7 +498,7 @@ public class Reconnector {
     /**
      * gets the time left before {@link Reconnect#getMaxReconnectNanos()} expires
      * 
-     * @returns The remaining time in nanoseconds
+     * @return The remaining time in nanoseconds
      */
     public long getRemainingTime(TimeUnit unit) {
         return unit.convert(Math.max(reconnect.getMaxReconnectNanos() - (System.nanoTime() - startTime), 0),
@@ -514,7 +506,7 @@ public class Reconnector {
     }
     
     /**
-     * @returns true if {@link Reconnect#getMaxReconnectNanos()} has expired, false
+     * @return true if {@link Reconnect#getMaxReconnectNanos()} has expired, false
      *          otherwise
      */
     public boolean hasTimedOut() {
@@ -632,7 +624,7 @@ public class Reconnector {
     /**
      * gets the user this reconnector is handling
      * 
-     * @return
+     * @return the user connection
      */
     public UserConnection getUser() {
         return user;
@@ -641,7 +633,7 @@ public class Reconnector {
     /**
      * gets the server connection this reconnector is handling
      * 
-     * @return
+     * @return the server connection
      */
     public ServerConnection getServer() {
         return currentServer;
@@ -658,7 +650,7 @@ public class Reconnector {
     /**
      * Gets the nanoTime when this reconnector was started.
      * 
-     * @return
+     * @return the start nanos
      */
     public long getStartNanos() {
         return startTime;
@@ -678,7 +670,7 @@ public class Reconnector {
      * @param force Should we forcefully cancel the channel even if it's active
      */
     public synchronized void cancel(boolean force) {
-        reconnect.debug(Reconnector.this, "cancel invoked(force=" + force + ") : " + toString());
+        reconnect.debug(Reconnector.this, "cancel invoked(force=" + force + ") : " + this);
         
         isCancelled = true;
         isRunning = false;

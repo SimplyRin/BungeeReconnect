@@ -1,12 +1,12 @@
 package me.taucu.reconnect;
 
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.TimeUnit;
-
 import me.taucu.reconnect.api.PlayerQueueEvent;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.config.ServerInfo;
+
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class QueueManager {
     
@@ -16,7 +16,7 @@ public class QueueManager {
      * A WeakHashMap containing all connection queued servers We use a weak hash map
      * in the event that a plugin meddles with the current servers at runtime
      */
-    private final Map<ServerInfo, ServerQueue> serverQueueMap = new WeakHashMap<ServerInfo, ServerQueue>();
+    private final Map<ServerInfo, ServerQueue> serverQueueMap = new WeakHashMap<>();
     
     protected QueueManager(Reconnect instance) {
         this.instance = instance;
