@@ -4,7 +4,7 @@
 # The current version of this configuration. Do NOT change this value!
 # If the plugin uses a more recent config version, this config gets replaced by it
 #   while a backup of the old config will be kept as "config.old.ver.<OLD VERSION>.yml".
-version: 14
+version: 15
 
 # Should debugging messages be shown?
 debug: false
@@ -31,7 +31,7 @@ Animations:
 # Minimum value is 50 Maximum value is 5000
 update-rate: 50
 
-# The default locale used for user messages
+# The default locale used for user messages when the users' locale is undefined
 default-locale: "en_US"
 
 # The text that should be displayed, when the plugin is trying to reconnect a player.

@@ -9,11 +9,11 @@ connectionTitle:
   subTitle: "&eПожалуйста подождите."
   actionBar: "&aПереподключение к серверу%dots%"
 
-
 failTitle:
   title: "&4Ошибка"
   subTitle: "&cПопробуйте подключится позже."
   actionBar: ""
-  
 
 failKickMessage: "&4Подключение не удалось. попробуйте позже."
+
+version: 1

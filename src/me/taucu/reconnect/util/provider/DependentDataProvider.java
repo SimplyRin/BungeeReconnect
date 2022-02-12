@@ -12,6 +12,7 @@ import java.util.Map;
 
 import com.google.common.io.ByteStreams;
 
+import me.taucu.reconnect.util.ConfigUtil;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
@@ -42,6 +43,7 @@ public class DependentDataProvider {
     @SneakyThrows
     void loadFiles() {
         ConfigurationProvider provider = ConfigurationProvider.getProvider(YamlConfiguration.class);
+        Configuration defaultLang = provider.load(plugin.getResourceAsStream("lang/en_US.yml"));
         for (File file : getLocaleFolder().toFile().listFiles()) {
             String[] localeEntry = file.getName()
                 .replace(".yml", "")
@@ -49,14 +51,18 @@ public class DependentDataProvider {
 
             Configuration langConf = provider.load(file);
 
-            dataByLocale.put(
-                new Locale(localeEntry[0], localeEntry[1]), new DependentData(
-                        new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
-                        new TitleViewEntry(langConf.getString("connectionTitle.title"), langConf.getString("connectionTitle.subTitle"), langConf.getString("connectionTitle.actionBar")),
-                        new TitleViewEntry(langConf.getString("failTitle.title"), langConf.getString("failTitle.subTitle"), langConf.getString("failTitle.actionBar")),
-                        langConf.getString("failKickMessage")
-                    )
+            if (ConfigUtil.checkConfigVersion(langConf, defaultLang)) {
+                dataByLocale.put(
+                        new Locale(localeEntry[0], localeEntry[1]), new DependentData(
+                                new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
+                                new TitleViewEntry(langConf.getString("connectionTitle.title"), langConf.getString("connectionTitle.subTitle"), langConf.getString("connectionTitle.actionBar")),
+                                new TitleViewEntry(langConf.getString("failTitle.title"), langConf.getString("failTitle.subTitle"), langConf.getString("failTitle.actionBar")),
+                                langConf.getString("failKickMessage")
+                        )
                 );
+            } else {
+                plugin.getLogger().warning("lang file \"" + file.getName() + "\" is of an outdated config version and will not be loaded");
+            }
         }
     }
 

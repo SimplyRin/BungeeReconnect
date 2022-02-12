@@ -19,6 +19,9 @@ failTitle:
   title: "&4Failed"
   subTitle: "&cTry to join again in a few moments."
   actionBar: "&bYou have been moved to the fallback server!"
-  
 
+# The kick message for when no fallback server was found when the plugin failed to reconnect a user.
 failKickMessage: "&4Reconnection failed. Please try again later."
+
+# config version (no touchy)
+version: 1

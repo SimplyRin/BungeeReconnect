@@ -29,6 +29,7 @@ import com.google.common.io.Files;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
+import me.taucu.reconnect.util.ConfigUtil;
 import me.taucu.reconnect.util.provider.DependentData;
 import me.taucu.reconnect.util.provider.DependentDataProvider;
 import net.md_5.bungee.ServerConnection;
@@ -135,18 +136,14 @@ public class Reconnect extends Plugin implements Listener {
             if (configFile.exists()) {
                 Configuration config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
                 int configVersion = config.getInt("version");
-                if (config.getInt("version") < internalConfig.getInt("version")) {
+                if (ConfigUtil.checkConfigVersion(config, internalConfig)) {
                     log.info("Found an old config version! Replacing with new one...");
-                    
-                    // rename the old config so that values are not lost
-                    File oldConfigFile = new File(getDataFolder(), "config.old.ver." + configVersion + ".yml");
-                    Files.move(configFile, oldConfigFile);
+                    File oldConfigFile = ConfigUtil.renameOldConfig(configFile);
                     log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
-                    
-                    saveDefaultConfig(configFile);
+                    ConfigUtil.copyInternalFile(configFile, "config.yml");
                 }
             } else {
-                saveDefaultConfig(configFile);
+                ConfigUtil.copyInternalFile(configFile, "config.yml");
             }
         }
         
@@ -227,15 +224,6 @@ public class Reconnect extends Plugin implements Listener {
                 log.severe("regex \"shutdown.text\" was malformed and was unable to be compiled.");
                 throw e;
             }
-        }
-    }
-    
-    private void saveDefaultConfig(File configFile) throws IOException {
-        if (!configFile.createNewFile()) {
-            throw new IOException("Could not create default config!");
-        }
-        try (InputStream is = getResourceAsStream("config.yml"); OutputStream os = new FileOutputStream(configFile)) {
-            ByteStreams.copy(is, os);
         }
     }
     
