@@ -1,34 +1,27 @@
 package me.taucu.reconnect.util.provider;
 
+import com.google.common.io.ByteStreams;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import me.taucu.reconnect.util.ConfigUtil;
+import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.config.Configuration;
+import net.md_5.bungee.config.ConfigurationProvider;
+import net.md_5.bungee.config.YamlConfiguration;
+
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-
-import com.google.common.io.ByteStreams;
-
-import me.taucu.reconnect.util.ConfigUtil;
-import net.md_5.bungee.config.Configuration;
-import net.md_5.bungee.config.ConfigurationProvider;
-import net.md_5.bungee.config.YamlConfiguration;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.Constructor;
-
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.plugin.Plugin;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor 
 public class DependentDataProvider {
     
-    Map<Locale, DependentData> dataByLocale = new HashMap<>();
+    Map<Locale, DependentData> dataByLocale = new ConcurrentHashMap<>();
 
     //todo
     Locale defaultLocale = new Locale("en", "US");
