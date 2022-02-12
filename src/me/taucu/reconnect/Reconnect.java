@@ -184,7 +184,7 @@ public class Reconnect extends Plugin implements Listener {
 
         String[] defaultLocale = configuration.getString("default-locale").split("_");
         if (defaultLocale.length != 2) {
-            log.warning("default locale is invalid. Defaulting to \"en-US\"");
+            log.warning("default locale is invalid. Defaulting to \"en_US\"");
             defaultLocale = new String[] {"en", "US"};
         }
         provider.setDefaultLocale(new Locale(defaultLocale[0], defaultLocale[1]));

@@ -32,7 +32,7 @@ Animations:
 update-rate: 50
 
 # The default locale used for user messages
-default-locale: "en-US"
+default-locale: "en_US"
 
 # The text that should be displayed, when the plugin is trying to reconnect a player.
 # Leave empty if you don't wish any title or action bar message to be displayed.

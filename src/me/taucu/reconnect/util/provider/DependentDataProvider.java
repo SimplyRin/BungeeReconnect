@@ -47,14 +47,14 @@ public class DependentDataProvider {
                 .replace(".yml", "")
                 .split("_");
 
-            Configuration langFile = provider.load(file);
+            Configuration langConf = provider.load(file);
 
             dataByLocale.put(
                 new Locale(localeEntry[0], localeEntry[1]), new DependentData(
-                        new TitleViewEntry(langFile.getString("reconnectionTitle.title"), langFile.getString("reconnectionTitle.subTitle"), langFile.getString("reconnectionTitle.actionBar")),
-                        new TitleViewEntry(langFile.getString("connectionTitle.title"), langFile.getString("connectionTitle.subTitle"), langFile.getString("connectionTitle.actionBar")),
-                        new TitleViewEntry(langFile.getString("failTitle.title"), langFile.getString("failTitle.subTitle"), langFile.getString("failTitle.actionBar")),
-                        langFile.getString("failKickMessage")
+                        new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
+                        new TitleViewEntry(langConf.getString("connectionTitle.title"), langConf.getString("connectionTitle.subTitle"), langConf.getString("connectionTitle.actionBar")),
+                        new TitleViewEntry(langConf.getString("failTitle.title"), langConf.getString("failTitle.subTitle"), langConf.getString("failTitle.actionBar")),
+                        langConf.getString("failKickMessage")
                     )
                 );
         }
