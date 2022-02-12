@@ -23,7 +23,6 @@ public class DependentDataProvider {
     
     Map<Locale, DependentData> dataByLocale = new ConcurrentHashMap<>();
 
-    //todo
     Locale defaultLocale = new Locale("en", "US");
 
     final Plugin plugin;
