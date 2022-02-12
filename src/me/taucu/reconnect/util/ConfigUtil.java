@@ -9,7 +9,7 @@ import java.nio.file.Files;
 public class ConfigUtil {
 
     public static boolean checkConfigVersion(Configuration conf, Configuration defaults) {
-        return conf.getInt("version", -1) != defaults.getInt("version", -1);
+        return conf.getInt("version", -1) == defaults.getInt("version", -1);
     }
 
     public static File renameOldConfig(File oldConfig) {
