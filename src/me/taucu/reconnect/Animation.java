@@ -29,13 +29,13 @@ public class Animation {
         this.animation = Collections.unmodifiableList(new ArrayList<String>(animation));
     }
     
-    public String animate(Reconnecter connecter, String string) {
-        return placeholderPattern.matcher(string).replaceAll(Matcher.quoteReplacement(get(connecter)));
+    public String animate(Reconnector connector, String string) {
+        return placeholderPattern.matcher(string).replaceAll(Matcher.quoteReplacement(get(connector)));
     }
     
-    public String get(Reconnecter connecter) {
-        return animation.get((int) ((System.nanoTime() - connecter.getStartNanos()) / delayNanos) % animation.size())
-                .replace("%playerName%", connecter.getUser().getName());
+    public String get(Reconnector connector) {
+        return animation.get((int) ((System.nanoTime() - connector.getStartNanos()) / delayNanos) % animation.size())
+                .replace("%playerName%", connector.getUser().getName());
     }
     
     public String getPlaceholder() {

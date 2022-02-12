@@ -34,7 +34,7 @@ public class StandardServerQueue implements ServerQueue {
                 }
                 
                 ctime = System.nanoTime();
-                long ftime = parent.instance().getConnctFinalizationNanos();
+                long ftime = parent.instance().getConnectFinalizationNanos();
                 
                 while (conWait.get()) {
                     synchronized (conWait) {
@@ -60,7 +60,7 @@ public class StandardServerQueue implements ServerQueue {
     
     @Override
     public long getCurrentHoldTime() {
-        return Math.max(-1, (lastTime + parent.instance().getConnctFinalizationNanos()) - System.nanoTime());
+        return Math.max(-1, (lastTime + parent.instance().getConnectFinalizationNanos()) - System.nanoTime());
     }
     
     @Override

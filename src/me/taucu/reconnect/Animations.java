@@ -19,10 +19,10 @@ public class Animations {
         this.instance = instance;
     }
     
-    public String animate(Reconnecter connecter, String string) {
+    public String animate(Reconnector connector, String string) {
         Iterator<Animation> values = animations.values().iterator();
         while (values.hasNext()) {
-            string = values.next().animate(connecter, string);
+            string = values.next().animate(connector, string);
         }
         return string;
     }

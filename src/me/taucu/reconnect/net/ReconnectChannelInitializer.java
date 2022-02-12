@@ -2,7 +2,7 @@ package me.taucu.reconnect.net;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
-import me.taucu.reconnect.Reconnecter;
+import me.taucu.reconnect.Reconnector;
 import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ProxyServer;
@@ -14,13 +14,13 @@ import net.md_5.bungee.protocol.Protocol;
 
 public class ReconnectChannelInitializer extends ChannelInitializer<Channel> {
     
-    private final Reconnecter connector;
+    private final Reconnector connector;
     
     private final ProxyServer bungee;
     private final UserConnection user;
     private final BungeeServerInfo target;
     
-    public ReconnectChannelInitializer(Reconnecter connector, ProxyServer bungee, UserConnection user, BungeeServerInfo target) {
+    public ReconnectChannelInitializer(Reconnector connector, ProxyServer bungee, UserConnection user, BungeeServerInfo target) {
         this.connector = connector;
         this.bungee = bungee;
         this.user = user;
