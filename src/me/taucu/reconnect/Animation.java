@@ -1,13 +1,13 @@
 package me.taucu.reconnect;
 
+import com.google.common.base.Preconditions;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.google.common.base.Preconditions;
 
 public class Animation {
     
@@ -24,18 +24,18 @@ public class Animation {
         Preconditions.checkNotNull(animation, "animation is null");
         Preconditions.checkArgument(!animation.isEmpty(), "animation is empty");
         this.placeholder = placeholder;
-        this.placeholderPattern = Pattern.compile(placeholder, 16);
+        this.placeholderPattern = Pattern.compile(placeholder, Pattern.LITERAL);
         this.delayNanos = delayUnit.toNanos(delay);
-        this.animation = Collections.unmodifiableList(new ArrayList<String>(animation));
+        this.animation = Collections.unmodifiableList(new ArrayList<>(animation));
     }
     
-    public String animate(Reconnecter connecter, String string) {
-        return placeholderPattern.matcher(string).replaceAll(Matcher.quoteReplacement(get(connecter)));
+    public String animate(Reconnector connector, String string) {
+        return placeholderPattern.matcher(string).replaceAll(Matcher.quoteReplacement(get(connector)));
     }
     
-    public String get(Reconnecter connecter) {
-        return animation.get((int) ((System.nanoTime() - connecter.getStartNanos()) / delayNanos) % animation.size())
-                .replace("%playerName%", connecter.getUser().getName());
+    public String get(Reconnector connector) {
+        return animation.get((int) ((System.nanoTime() - connector.getStartNanos()) / delayNanos) % animation.size())
+                .replace("%playerName%", connector.getUser().getName());
     }
     
     public String getPlaceholder() {

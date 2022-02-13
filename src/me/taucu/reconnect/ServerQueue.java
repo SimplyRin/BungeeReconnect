@@ -4,10 +4,10 @@ import java.util.concurrent.TimeUnit;
 
 public interface ServerQueue {
     
-    public Holder queue(long timeout, TimeUnit unit);
+    Holder queue(long timeout, TimeUnit unit);
     
-    public long getCurrentHoldTime();
+    long getCurrentHoldTime();
     
-    public long getCurrentWaitTime();
+    long getCurrentWaitTime();
     
 }

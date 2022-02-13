@@ -1,40 +1,22 @@
 package me.taucu.reconnect;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Filter;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
 import com.google.common.base.Strings;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
-
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
+import me.taucu.reconnect.util.ConfigUtil;
+import me.taucu.reconnect.util.provider.DependentData;
+import me.taucu.reconnect.util.provider.DependentDataProvider;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
-import net.md_5.bungee.api.Callback;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.api.event.PlayerDisconnectEvent;
 import net.md_5.bungee.api.event.ServerConnectEvent.Reason;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.event.SettingsChangedEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -42,6 +24,17 @@ import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
 import net.md_5.bungee.event.EventPriority;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class Reconnect extends Plugin implements Listener {
     
@@ -51,27 +44,24 @@ public class Reconnect extends Plugin implements Listener {
     
     private Animations animations = new Animations(this);
     
-    private String reconnectingTitle = null, reconnectingSubtitle = null, reconnectingActionBar = null;
-    
-    private String connectingTitle = null, connectingSubtitle = null, connectingActionBar = null;
-    
-    private String failedTitle = null, failedSubtitle = null, failedActionBar = null, failedKickMessage = null;
-    
     private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
-    private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connctFinalizationNanos = 0;
+    private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connectFinalizationNanos = 0;
     
     private List<String> serversList = new ArrayList<>();
     private boolean serversListIsWhitelist = true;
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
+
+    DependentDataProvider langProvider = new DependentDataProvider(this);
+    ConcurrentHashMap<Object, Locale> localeByUUID = new ConcurrentHashMap<>();
     
     /**
      * A HashMap containing all reconnect tasks.
      */
-    private HashMap<UUID, Reconnecter> reconnecters = new HashMap<UUID, Reconnecter>();
+    private final HashMap<UUID, Reconnector> reconnectors = new HashMap<>();
     
-    private QueueManager queueManager = new QueueManager(this);
+    private final QueueManager queueManager = new QueueManager(this);
     
     @Override
     public void onEnable() {
@@ -101,8 +91,8 @@ public class Reconnect extends Plugin implements Listener {
         // detach all handlers
         getProxy().getPlayers().forEach(ucon -> DownstreamInboundHandler.detachHandlerFrom((UserConnection) ucon));
         
-        // cancel all reconnecters
-        getReconnecters().forEach(re -> re.cancel(true));
+        // cancel all reconnectors
+        getReconnectors().forEach(re -> re.cancel(true));
     }
     
     public boolean reload() {
@@ -133,26 +123,21 @@ public class Reconnect extends Plugin implements Listener {
             // if config file exists check if it needs updating
             if (configFile.exists()) {
                 Configuration config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
-                int configVersion = config.getInt("version");
-                if (config.getInt("version") < internalConfig.getInt("version")) {
+                if (!ConfigUtil.checkConfigVersion(config, internalConfig)) {
                     log.info("Found an old config version! Replacing with new one...");
-                    
-                    // rename the old config so that values are not lost
-                    File oldConfigFile = new File(getDataFolder(), "config.old.ver." + configVersion + ".yml");
-                    Files.move(configFile, oldConfigFile);
+                    File oldConfigFile = ConfigUtil.renameOldConfig(configFile);
                     log.info("A backup of your old config has been saved to " + oldConfigFile + "!");
-                    
-                    saveDefaultConfig(configFile);
+                    ConfigUtil.copyInternalFile(configFile, "config.yml");
                 }
             } else {
-                saveDefaultConfig(configFile);
+                ConfigUtil.copyInternalFile(configFile, "config.yml");
             }
         }
         
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
     }
-    
-    private void processConfig(Configuration configuration, Logger log) throws Exception {
+
+    private void processConfig(Configuration configuration, Logger log) {
         
         this.debug = configuration.getBoolean("debug");
         
@@ -162,31 +147,17 @@ public class Reconnect extends Plugin implements Listener {
             animations.deserialize(animationsConfig);
             this.animations = animations;
         } else {
-            log.warning("Animations configeration is null. Animations will not work until this is resolved.");
+            log.warning("Animations configuration is null. Animations will not work until this is resolved.");
         }
-        
-        // obtain reconnecting formatting from config
-        reconnectingTitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.title"));
-        reconnectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.subtitle"));
-        reconnectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("reconnecting-text.actionbar"));
-        
-        // obtain connecting formatting from config
-        connectingTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("connecting-text.title"));
-        connectingSubtitle = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.subtitle"));
-        connectingActionBar = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("connecting-text.actionbar"));
-        
-        // obtain failed formatting from config
-        failedTitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.title"));
-        failedSubtitle = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.subtitle"));
-        failedActionBar = ChatColor.translateAlternateColorCodes('&', configuration.getString("failed-text.actionbar"));
-        failedKickMessage = ChatColor.translateAlternateColorCodes('&',
-                configuration.getString("failed-text.kick-message"));
-        
+
+        String[] defaultLocale = configuration.getString("default-locale").split("_");
+        if (defaultLocale.length != 2) {
+            log.warning("default locale is invalid. Defaulting to \"en_US\"");
+            defaultLocale = new String[] {"en", "US"};
+        }
+        langProvider.setDefaultLocale(new Locale(defaultLocale[0], defaultLocale[1]));
+        langProvider.load();
+
         // obtain delays and timeouts from config
         titleUpdateRate = Math.min(Math.max(configuration.getInt("title-update-rate"), 50), 5000);
         delayBeforeTrying = Math.max(configuration.getInt("delay-before-trying"), 500);
@@ -194,7 +165,7 @@ public class Reconnect extends Plugin implements Listener {
                 .toNanos(Math.max(configuration.getInt("delay-between-reconnects"), 0));
         maxReconnectNanos = Math.max(TimeUnit.MILLISECONDS.toNanos(configuration.getInt("max-reconnect-time")),
                 TimeUnit.MILLISECONDS.toNanos(delayBeforeTrying + reconnectTimeout));
-        connctFinalizationNanos = Math.max(0,
+        connectFinalizationNanos = Math.max(0,
                 TimeUnit.MILLISECONDS.toNanos(configuration.getInt("connect-finalization-timeout")));
         reconnectTimeout = Math.max(configuration.getInt("reconnect-timeout"),
                 2000 + configuration.getInt("connect-finalization-timeout"));
@@ -227,15 +198,6 @@ public class Reconnect extends Plugin implements Listener {
         }
     }
     
-    private void saveDefaultConfig(File configFile) throws IOException {
-        if (!configFile.createNewFile()) {
-            throw new IOException("Could not create default config!");
-        }
-        try (InputStream is = getResourceAsStream("config.yml"); OutputStream os = new FileOutputStream(configFile)) {
-            ByteStreams.copy(is, os);
-        }
-    }
-    
     @EventHandler(priority = EventPriority.HIGH)
     public void onServerSwitch(ServerSwitchEvent event) {
         debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
@@ -245,14 +207,36 @@ public class Reconnect extends Plugin implements Listener {
         // so we register a channel handler before HandlerBoss
         DownstreamInboundHandler.attachHandlerTo(ucon, this);
         
-        // checks to see if we should cancel the reconnecter if it exists
-        Reconnecter re = getReconnecterFor(event.getPlayer().getUniqueId());
+        // checks to see if we should cancel the reconnector if it exists
+        Reconnector re = getReconnectorFor(event.getPlayer().getUniqueId());
         if (re != null && !re.isSameInfo()) {
             re.cancel(true);
             final ServerConnection currentServer = re.getUser().getServer();
             getLogger().info("Cancelled reconnect for \"" + re.getUser().getName() + "\" on \""
                     + re.getServer().getInfo().getName() + "\" as they have switched servers to \""
                     + (currentServer == null ? "null?" : currentServer.getInfo().getName() + "\""));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDisconnect(PlayerDisconnectEvent e) {
+        Reconnector re = getReconnectorFor(e.getPlayer().getUniqueId());
+        if (re != null) {
+            getLogger().info("Cancelled reconnect for \"" + re.getUser().getName() + "\" on \""
+                            + re.getServer().getInfo().getName() + "\" as they have disconnected");
+            re.cancel(true);
+        }
+        localeByUUID.remove(e.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onSettingsChange(SettingsChangedEvent event) {
+        ProxiedPlayer player = event.getPlayer();
+        localeByUUID.put(player.getUniqueId(), player.getLocale());
+
+        Reconnector recon = getReconnectorFor(player.getUniqueId());
+        if (recon != null) {
+            recon.setData(langProvider.getForLocale(player.getLocale()));
         }
     }
     
@@ -293,7 +277,7 @@ public class Reconnect extends Plugin implements Listener {
      * @return true, if the UserConnection is still online.
      */
     public boolean isUserOnline(UserConnection user) {
-        return getProxy().getPlayer(user.getUniqueId()) != null;
+        return user.isConnected();
     }
     
     /**
@@ -306,10 +290,10 @@ public class Reconnect extends Plugin implements Listener {
      * @return true if a reconnect will occur, false otherwise
      */
     public boolean reconnectIfApplicable(UserConnection ucon, ServerConnection server) {
-        if (!isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
-            return reconnectIfOnline(ucon, server);
-        } else {
+        if (isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
             debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
+        } else {
+            return reconnectIfOnline(ucon, server);
         }
         return false;
     }
@@ -334,24 +318,24 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     /**
-     * Returns a new list of all current reconnecters
-     * @return list of reconnecters
+     * Returns a new list of all current reconnectors
+     * @return list of reconnectors
      */
-    public ArrayList<Reconnecter> getReconnecters() {
-        synchronized (reconnecters) {
-            return new ArrayList<Reconnecter>(reconnecters.values());
+    public ArrayList<Reconnector> getReconnectors() {
+        synchronized (reconnectors) {
+            return new ArrayList<>(reconnectors.values());
         }
     }
     
     /**
-     * Gets current reconnecter for player or null if none exist
+     * Gets current reconnector for player or null if none exist
      * 
      * @param uid UUID of the player
-     * @return the reconnecter or null of there is none
+     * @return the reconnector or null of there is none
      */
-    public Reconnecter getReconnecterFor(UUID uid) {
-        synchronized (reconnecters) {
-            return reconnecters.get(uid);
+    public Reconnector getReconnectorFor(UUID uid) {
+        synchronized (reconnectors) {
+            return reconnectors.get(uid);
         }
     }
     
@@ -362,16 +346,21 @@ public class Reconnect extends Plugin implements Listener {
      * @param server The Server the User should be connected to.
      */
     private synchronized void reconnect(UserConnection user, ServerConnection server) {
-        Reconnecter reconnecter = new Reconnecter(this, getProxy(), user, server);
-        Reconnecter current = null;
-        synchronized (reconnecters) {
-            current = reconnecters.get(user.getUniqueId());
-            reconnecters.put(user.getUniqueId(), reconnecter);
+
+        DependentData data = langProvider.getForLocale(
+            localeByUUID.get(user.getUniqueId()));
+        
+        Reconnector reconnector = new Reconnector(
+            this, getProxy(), user, server, data == null ? langProvider.getDefault() : data);
+        Reconnector current;
+        synchronized (reconnectors) {
+            current = reconnectors.get(user.getUniqueId());
+            reconnectors.put(user.getUniqueId(), reconnector);
         }
         if (current != null) {
             current.cancel();
         }
-        reconnecter.start();
+        reconnector.start();
     }
     
     /**
@@ -379,10 +368,10 @@ public class Reconnect extends Plugin implements Listener {
      *
      * @param uuid The UniqueId of the User.
      */
-    void cancelReconnecterFor(UUID uuid) {
-        Reconnecter task;
-        synchronized (reconnecters) {
-            task = reconnecters.remove(uuid);
+    public void cancelReconnectorFor(UUID uuid) {
+        Reconnector task;
+        synchronized (reconnectors) {
+            task = reconnectors.remove(uuid);
         }
         if (task != null) {
             task.failReconnect();
@@ -391,9 +380,9 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     // internal use only, does not cancel only removes.
-    void remove(Reconnecter reconnecter) {
-        synchronized (reconnecters) {
-            reconnecters.remove(reconnecter.getUUID(), reconnecter);
+    void remove(Reconnector reconnector) {
+        synchronized (reconnectors) {
+            reconnectors.remove(reconnector.getUUID(), reconnector);
         }
     }
     
@@ -413,49 +402,14 @@ public class Reconnect extends Plugin implements Listener {
             }
             return;
         }
-        user.connect(it.next(), new Callback<Boolean>() {
-            @Override
-            public void done(Boolean done, Throwable t) {
-                if (!done) {
-                    fallback(user, it, onFailed);
-                }
+        user.connect(it.next(), (done, throwable) -> {
+            if (!done) {
+                fallback(user, it, onFailed);
             }
         }, Reason.SERVER_DOWN_REDIRECT);
         user.sendMessage(bungee.getTranslation("server_went_down"));
     }
-    
-    public String getReconnectingTitle() {
-        return reconnectingTitle;
-    }
-    
-    public String getReconnectingActionBar() {
-        return reconnectingActionBar;
-    }
-    
-    public String getConnectingTitle() {
-        return connectingTitle;
-    }
-    
-    public String getConnectingSubtitle() {
-        return connectingSubtitle;
-    }
-    
-    public String getConnectingActionBar() {
-        return connectingActionBar;
-    }
-    
-    public String getFailedTitle() {
-        return failedTitle;
-    }
-    
-    public String getFailedActionBar() {
-        return failedActionBar;
-    }
-    
-    public String getFailedKickMessage() {
-        return failedKickMessage;
-    }
-    
+
     public int getTitleUpdateRate() {
         return titleUpdateRate;
     }
@@ -468,8 +422,8 @@ public class Reconnect extends Plugin implements Listener {
         return nanosBetweenConnects;
     }
     
-    public long getConnctFinalizationNanos() {
-        return connctFinalizationNanos;
+    public long getConnectFinalizationNanos() {
+        return connectFinalizationNanos;
     }
     
     public int getReconnectTimeout() {
@@ -499,25 +453,17 @@ public class Reconnect extends Plugin implements Listener {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
     }
-    
-    public String getReconnectingSubtitle() {
-        return reconnectingSubtitle;
-    }
-    
-    public String getFailedSubtitle() {
-        return failedSubtitle;
-    }
-    
+  
     public Animations getAnimations() {
         return animations;
     }
     
-    public String animate(Reconnecter c, String s) {
+    public String animate(Reconnector c, String s) {
         return animations.animate(c, s);
     }
     
     public List<ServerInfo> getFallbackServersFor(UserConnection user) {
-        List<ServerInfo> servers = new ArrayList<ServerInfo>();
+        List<ServerInfo> servers = new ArrayList<>();
         user.getPendingConnection().getListener().getServerPriority()
         .forEach(s -> servers.add(bungee.getServerInfo(s)));
         return servers;
@@ -528,25 +474,20 @@ public class Reconnect extends Plugin implements Listener {
      * @param who         the player that is waiting
      * @param timeout     how long will you wait in the queue
      * @param timeoutUnit The timeunit for timeout
-     * @returns holder that can be unlocked when done.
+     * @return holder that can be unlocked when done.
      */
     public Holder waitForConnect(ServerInfo server, UserConnection who, long timeout, TimeUnit timeoutUnit) {
         return queueManager.queue(server, who, timeout, timeoutUnit);
     }
     
-    
     public void fixLogger() {
-        getLogger().setFilter(new Filter() {
-            
-            @Override
-            public boolean isLoggable(LogRecord r) {
-                // eat mega shit dicks bungee
-                if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
-                    r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
-                    r.setLevel(Level.INFO);
-                }
-                return true;
+        getLogger().setFilter(r -> {
+            // eat mega shit dicks bungee
+            if (debug && r.getLevel().intValue() < Level.INFO.intValue()) {
+                r.setLoggerName(r.getLoggerName() + "] [" + r.getLevel().getName());
+                r.setLevel(Level.INFO);
             }
+            return true;
         });
     }
     
@@ -567,7 +508,7 @@ public class Reconnect extends Plugin implements Listener {
     public void debug(String m) {
         if (debug) {
             StackTraceElement element = Thread.currentThread().getStackTrace()[2];
-            String clazzName = null;
+            String clazzName;
             try {
                 clazzName = Class.forName(element.getClassName()).getSimpleName();
             } catch (ClassNotFoundException e) {

@@ -1,28 +1,26 @@
 package me.taucu.reconnect;
 
-import java.util.Iterator;
+import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.config.Configuration;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.config.Configuration;
-
 public class Animations {
     
     private final Reconnect instance;
-    private volatile ConcurrentHashMap<String, Animation> animations = new ConcurrentHashMap<String, Animation>();
+    private volatile ConcurrentHashMap<String, Animation> animations = new ConcurrentHashMap<>();
     
     public Animations(Reconnect instance) {
         this.instance = instance;
     }
     
-    public String animate(Reconnecter connecter, String string) {
-        Iterator<Animation> values = animations.values().iterator();
-        while (values.hasNext()) {
-            string = values.next().animate(connecter, string);
+    public String animate(Reconnector connector, String string) {
+        for (Animation animation : animations.values()) {
+            string = animation.animate(connector, string);
         }
         return string;
     }
@@ -44,7 +42,7 @@ public class Animations {
     }
     
     public void set(Map<String, Animation> map) {
-        this.animations = new ConcurrentHashMap<String, Animation>(map);
+        this.animations = new ConcurrentHashMap<>(map);
     }
     
     public void clear() {
@@ -53,7 +51,7 @@ public class Animations {
     
     public boolean deserialize(Configuration config) {
         boolean wasErrorless = true;
-        ConcurrentHashMap<String, Animation> animations = new ConcurrentHashMap<String, Animation>();
+        ConcurrentHashMap<String, Animation> animations = new ConcurrentHashMap<>();
         for (String name : config.getKeys()) {
             try {
                 Configuration animation = config.getSection(name);

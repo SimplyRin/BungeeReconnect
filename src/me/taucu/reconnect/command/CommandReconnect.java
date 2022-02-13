@@ -1,10 +1,5 @@
 package me.taucu.reconnect.command;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
 import me.taucu.reconnect.Reconnect;
 import me.taucu.reconnect.util.CmdUtil;
 import net.md_5.bungee.UserConnection;
@@ -14,6 +9,11 @@ import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.plugin.Command;
 import net.md_5.bungee.api.plugin.TabExecutor;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class CommandReconnect extends Command implements TabExecutor {
     
@@ -50,18 +50,13 @@ public class CommandReconnect extends Command implements TabExecutor {
             .append("Testing reconnect")
             .create();
     
-    private static final BaseComponent[] cmdFeedbackTestingFalse = new ComponentBuilder()
-            .color(ChatColor.RED)
-            .append("Not reconnecting because it's an ignored server, or the reconnect event has been cancelled")
-            .create();
-    
     private static final BaseComponent[] cmdFeedbackTestingConsoleError = new ComponentBuilder()
             .color(ChatColor.RED)
             .append("you must use this command in-game")
             .create();
     
     public CommandReconnect(Reconnect instance) {
-        super("bungee-reconnect", "reconnect.command", new String[] { "reconnect" });
+        super("bungee-reconnect", "reconnect.command", "reconnect");
         this.instance = instance;
     }
     
@@ -81,9 +76,7 @@ public class CommandReconnect extends Command implements TabExecutor {
                 if (sender instanceof UserConnection) {
                     sender.sendMessage(cmdFeedbackTesting);
                     UserConnection ucon = (UserConnection) sender;
-                    if (!instance.reconnectIfApplicable(ucon, ucon.getServer())) {
-                        sender.sendMessage(cmdFeedbackTestingFalse);
-                    }
+                    ucon.getServer().getCh().close();
                 } else {
                     sender.sendMessage(cmdFeedbackTestingConsoleError);
                 }
@@ -103,7 +96,7 @@ public class CommandReconnect extends Command implements TabExecutor {
     public Iterable<String> onTabComplete(CommandSender sender, String[] args) {
         if (args.length > 0) {
             if (args.length > 1) {
-                return new ArrayList<String>();
+                return new ArrayList<>();
             } else {
                 return CmdUtil.copyPartialMatches(baseComplete, args[0]);
             }

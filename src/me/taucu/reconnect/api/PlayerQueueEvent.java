@@ -1,23 +1,22 @@
 package me.taucu.reconnect.api;
 
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.base.Preconditions;
-
 import me.taucu.reconnect.ServerQueue;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Cancellable;
 import net.md_5.bungee.api.plugin.Event;
 
+import java.util.concurrent.TimeUnit;
+
 public class PlayerQueueEvent extends Event implements Cancellable {
     
     private boolean cancelled = false;
     
-    private ServerInfo server;
+    private final ServerInfo server;
     private final ServerQueue defaultQueue;
+    private final ProxiedPlayer whom;
     private ServerQueue currentQueue;
-    private ProxiedPlayer whom;
     private long queueTimeout;
     private TimeUnit queueTimeoutUnit;
     

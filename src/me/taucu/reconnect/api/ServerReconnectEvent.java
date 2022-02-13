@@ -7,7 +7,7 @@ import net.md_5.bungee.api.plugin.Event;
 public class ServerReconnectEvent extends Event {
     
     private final ProxiedPlayer player;
-    private ServerInfo target;
+    private final ServerInfo target;
     private boolean cancelled;
     
     public ServerReconnectEvent(ProxiedPlayer player, ServerInfo target) {

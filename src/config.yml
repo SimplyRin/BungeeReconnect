@@ -4,7 +4,7 @@
 # The current version of this configuration. Do NOT change this value!
 # If the plugin uses a more recent config version, this config gets replaced by it
 #   while a backup of the old config will be kept as "config.old.ver.<OLD VERSION>.yml".
-version: 14
+version: 15
 
 # Should debugging messages be shown?
 debug: false
@@ -24,37 +24,16 @@ Animations:
     - "&b.&7.."
     - "&7.&b.&7."
     - "&7..&b.&7"
-    
 
 # This value should not be changed unless you are experiencing issues with titles "flickering" on bedrock clients
 # In which case you should change this value to 1 second (1000)
 # Minimum value is 50 Maximum value is 5000
 update-rate: 50
 
-# The text that should be displayed, when the plugin is trying to reconnect a player.
-# Leave empty if you don't wish any title or action bar message to be displayed.
-reconnecting-text:
-  # You can add animations to the reconnecting texts by using the animations placeholder.
-  title: "&cRestarting%dots%"
-  subtitle: "&ePlease wait."
-  actionbar: "&bYou will be &aautomatically reconnected &bin a few moments"
+# The default locale used for user messages when the users' locale is undefined
+default-locale: "en_US"
 
-# The text that should be displayed, when the plugin managed to establish a connection to the previous server.
-# Leave empty if you don't wish any title or action bar message to be displayed.
-connecting-text:
-  title: "&aReconnecting%dots%"
-  subtitle: "&ePlease wait."
-  actionbar: "&aReconnecting to server%dots%"
-
-# The text that should be displayed, when the plugin didn't manage to
-#   establish a connection to the previous server within time limits and connected the player to the fallback server.
-# Includes a kick message in the event of no fallback server being found.
-# Leave empty if you don't wish any title or action bar message to be displayed.
-failed-text:
-  title: "&4Failed"
-  subtitle: "&cTry to join again in a few moments."
-  actionbar: "&bYou have been moved to the fallback server!"
-  kick-message: "&4Reconnection failed. Please try again later."
+# Titles, subtitles and actionbar messages are configured in the ./plugins/lang/ folder
 
 # The amount of milliseconds the plugin will wait before attempting to check if the server is alive.
 # This must be at least 500, however if you use an automatic restart plugin that kicks players

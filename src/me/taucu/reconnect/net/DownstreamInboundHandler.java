@@ -1,7 +1,5 @@
 package me.taucu.reconnect.net;
 
-import java.util.logging.Level;
-
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
@@ -18,6 +16,8 @@ import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.DefinedPacket;
 import net.md_5.bungee.protocol.PacketWrapper;
 import net.md_5.bungee.protocol.packet.Kick;
+
+import java.util.logging.Level;
 
 public class DownstreamInboundHandler extends ChannelHandlerAdapter implements ChannelInboundHandler {
     
@@ -63,52 +63,54 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+    public void channelRegistered(ChannelHandlerContext ctx) {
         ctx.fireChannelRegistered();
     }
     
     @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+    public void channelUnregistered(ChannelHandlerContext ctx) {
         ctx.fireChannelUnregistered();
     }
     
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         ctx.fireChannelActive();
     }
     
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         instance.debug(this, "HANDLE_CHANNEL_INACTIVE sameServer=" + (ucon.getServer() == server));
-        if (startedReconnecting) {
-            instance.debug(this, "already reconnecting");
-            server.setObsolete(true);
-            ch.markClosed();
-            server.getInfo().removePlayer(ucon);
-            ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
-            instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
-            return;
-        } else {
-            if (ucon.getServer() == server && !legitimateKick) {
-                instance.debug(this, "handling, reconnect if applicable");
-                if (instance.reconnectIfApplicable(ucon, server)) {
-                    startedReconnecting = true;
-                    server.setObsolete(true);
-                    ch.markClosed();
-                    server.getInfo().removePlayer(ucon);
-                    log("lost connection");
-                    ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
-                    instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
-                    // return so fireChannelInactive isn't called
-                    return;
+        if (ucon.isConnected()) {
+            if (startedReconnecting) {
+                instance.debug(this, "already reconnecting");
+                server.setObsolete(true);
+                ch.markClosed();
+                server.getInfo().removePlayer(ucon);
+                ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+                instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
+                return;
+            } else {
+                if (ucon.getServer() == server && !legitimateKick) {
+                    instance.debug(this, "handling, reconnect if applicable");
+                    if (instance.reconnectIfApplicable(ucon, server)) {
+                        startedReconnecting = true;
+                        server.setObsolete(true);
+                        ch.markClosed();
+                        server.getInfo().removePlayer(ucon);
+                        log("lost connection");
+                        ServerDisconnectEvent serverDisconnectEvent = new ServerDisconnectEvent(ucon, this.server.getInfo());
+                        instance.getProxy().getPluginManager().callEvent(serverDisconnectEvent);
+                        // return so fireChannelInactive isn't called
+                        return;
+                    }
                 }
             }
-            ctx.fireChannelInactive();
         }
+        ctx.fireChannelInactive();
     }
     
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object obj) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object obj) {
         if (obj instanceof PacketWrapper) {
             boolean fireNextRead = true;
             PacketWrapper wrapper = (PacketWrapper) obj;
@@ -118,7 +120,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                     Kick kick = (Kick) packet;
                     instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
                     
-                    boolean legitimageKick = true;
+                    boolean legitimateKick = true;
                     
                     if (!instance.isIgnoredServer(server.getInfo())) {
                         
@@ -134,7 +136,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                             if (instance.reconnectIfApplicable(ucon, server)) {
                                 // don't propagate this to the next handler
                                 fireNextRead = false;
-                                legitimageKick = false;
+                                legitimateKick = false;
                                 startedReconnecting = true;
                                 server.setObsolete(true);
                             } else {
@@ -147,7 +149,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                         instance.debug(this, "not handling because it's an ignored server.");
                     }
                     
-                    this.legitimateKick = legitimageKick;
+                    this.legitimateKick = legitimateKick;
                     
                 }
             } finally {
@@ -163,27 +165,29 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     }
     
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+    public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.fireChannelReadComplete();
     }
     
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object obj) throws Exception {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object obj) {
         ctx.fireUserEventTriggered(obj);
     }
     
     @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+    public void channelWritabilityChanged(ChannelHandlerContext ctx) {
         ctx.fireChannelWritabilityChanged();
     }
     
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) throws Exception {
-        if (ctx.channel().isActive()) {
+    @SuppressWarnings("deprecation")
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) {
+        if (ctx.channel().isActive() && ucon.isConnected()) {
             instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
                 ctx.close();
+                return;
             } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
                 instance.debug(this, "reconnecting");
                 startedReconnecting = true;
@@ -194,10 +198,7 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                 return;
             }
         }
-        
-        if (!startedReconnecting) {
-            ctx.fireExceptionCaught(yeet);
-        }
+        ctx.fireExceptionCaught(yeet);
     }
     
     public void log(String msg) {
