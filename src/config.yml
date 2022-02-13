@@ -24,7 +24,6 @@ Animations:
     - "&b.&7.."
     - "&7.&b.&7."
     - "&7..&b.&7"
-    
 
 # This value should not be changed unless you are experiencing issues with titles "flickering" on bedrock clients
 # In which case you should change this value to 1 second (1000)
@@ -33,6 +32,8 @@ update-rate: 50
 
 # The default locale used for user messages when the users' locale is undefined
 default-locale: "en_US"
+
+# Titles, subtitles and actionbar messages are configured in the ./plugins/lang/ folder
 
 # The amount of milliseconds the plugin will wait before attempting to check if the server is alive.
 # This must be at least 500, however if you use an automatic restart plugin that kicks players
