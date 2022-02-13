@@ -1,4 +1,4 @@
 name: Reconnect
 version: ${pom.version}
 main: me.taucu.reconnect.Reconnect
-author: TauCubed (Development, updates and fixes, commands & overhaul), 5zig (Initial Development), Krymonota (Contribution), Terrobility (Addition Configs), dallasxfulcanelly (dynamic localization), krusic22 (1.12.2 Fix)
+author: TauCubed (Development, commands & overhaul), 5zig (Initial Development), Krymonota (Contribution), Terrobility (Addition Config), dallasxfulcanelly (dynamic localization)
