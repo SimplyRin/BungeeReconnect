@@ -24,6 +24,7 @@ import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
 import net.md_5.bungee.event.EventPriority;
+import org.bstats.bungeecord.Metrics;
 
 import java.io.File;
 import java.io.IOException;
@@ -188,14 +189,16 @@ public class Reconnect extends Plugin implements Listener {
                 // message.
                 if (!configuration.getBoolean("shutdown.regex")) {
                     shutdownMessage = shutdownText;
-                } else { // otherwise compile the regex pattern
+                } else { // otherwise, compile the regex pattern
                     shutdownPattern = Pattern.compile(shutdownText);
                 }
             } catch (PatternSyntaxException e) {
-                log.severe("regex \"shutdown.text\" was malformed and was unable to be compiled.");
+                log.severe("regex \"shutdown.text\" is malformed and was unable to be compiled.");
                 throw e;
             }
         }
+
+        Metrics metrics = new Metrics(this, 14792);
     }
     
     @EventHandler(priority = EventPriority.HIGH)

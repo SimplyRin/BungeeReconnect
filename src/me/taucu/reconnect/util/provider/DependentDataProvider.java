@@ -48,7 +48,9 @@ public class DependentDataProvider {
 
             Configuration langConf = provider.load(file);
 
-            if (ConfigUtil.checkConfigVersion(langConf, defaultConf)) {
+            if (langConf.getKeys().isEmpty()) {
+                plugin.getLogger().warning("Language file " + file.getName() + " is an empty file!");
+            } else if (ConfigUtil.checkConfigVersion(langConf, defaultConf)) {
                 dataByLocale.put(
                         new Locale(localeEntry[0], localeEntry[1]), new DependentData(
                                 new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
@@ -68,22 +70,29 @@ public class DependentDataProvider {
     }
 
     static final String [] langs = {
-        "en_US.yml", "ru_RU.yml"
+        "en_US.yml", "ru_RU.yml", "de_DE.yml"
     };
 
     @SneakyThrows
     void loadResources() {
-        for (String filename : langs) {
+        if (getLocaleFolder().toFile().listFiles().length == 0) {
+            for (String filename : langs) {
 
-            File file = getLocaleFolder().resolve(filename).toFile();
-            if (file.exists()) {
-                continue;
+                File file = getLocaleFolder().resolve(filename).toFile();
+
+                try (InputStream is = plugin.getResourceAsStream("lang/" + filename); OutputStream os = new FileOutputStream(file)) {
+                    ByteStreams.copy(is, os);
+                }
+
             }
-
-            try (InputStream is = plugin.getResourceAsStream("lang/" + filename); OutputStream os = new FileOutputStream(file)) {
+        }
+        if (!getLocaleFolder().resolve(getTag(defaultLocale) + ".yml").toFile().exists()) {
+            plugin.getLogger().warning("Default language file \"" + getTag(defaultLocale) + "\" is missing. Regenerating.");
+            String defaultLangFilename = getTag(defaultLocale) + ".yml";
+            try (InputStream is = plugin.getResourceAsStream("lang/" + defaultLangFilename);
+                 OutputStream os = new FileOutputStream(getLocaleFolder().resolve(defaultLangFilename).toFile())) {
                 ByteStreams.copy(is, os);
             }
-  
         }
     }    
 
@@ -118,6 +127,10 @@ public class DependentDataProvider {
         } else {
             return data;
         }
+    }
+
+    public String getTag(Locale locale) {
+        return locale.getLanguage() + "_" + locale.getCountry();
     }
 
 }
