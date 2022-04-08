@@ -4,6 +4,7 @@ import com.google.common.io.ByteStreams;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import me.taucu.reconnect.util.ConfigUtil;
+import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
@@ -56,7 +57,7 @@ public class DependentDataProvider {
                                 new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
                                 new TitleViewEntry(langConf.getString("connectionTitle.title"), langConf.getString("connectionTitle.subTitle"), langConf.getString("connectionTitle.actionBar")),
                                 new TitleViewEntry(langConf.getString("failTitle.title"), langConf.getString("failTitle.subTitle"), langConf.getString("failTitle.actionBar")),
-                                langConf.getString("failKickMessage").replace("&", "§")
+                                ChatColor.translateAlternateColorCodes('&', langConf.getString("failKickMessage"))
                         )
                 );
                 dataByLocale.keySet().forEach(locale -> localeByLang.put(locale.getLanguage(), locale));
