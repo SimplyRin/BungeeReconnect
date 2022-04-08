@@ -56,7 +56,7 @@ public class DependentDataProvider {
                                 new TitleViewEntry(langConf.getString("reconnectionTitle.title"), langConf.getString("reconnectionTitle.subTitle"), langConf.getString("reconnectionTitle.actionBar")),
                                 new TitleViewEntry(langConf.getString("connectionTitle.title"), langConf.getString("connectionTitle.subTitle"), langConf.getString("connectionTitle.actionBar")),
                                 new TitleViewEntry(langConf.getString("failTitle.title"), langConf.getString("failTitle.subTitle"), langConf.getString("failTitle.actionBar")),
-                                langConf.getString("failKickMessage")
+                                langConf.getString("failKickMessage").replace("&", "§")
                         )
                 );
                 dataByLocale.keySet().forEach(locale -> localeByLang.put(locale.getLanguage(), locale));
