@@ -21,7 +21,7 @@ failTitle:
   actionBar: "&bDu wurdest auf den Fallback Server verschoben!"
 
 # The kick message for when no fallback server was found when the plugin failed to reconnect a user.
-failKickMessage: "&4Wiederverbunden fehlgeschlagen. Versuche es bitte später nochmal."
+failKickMessage: "&4Wiederverbindung fehlgeschlagen. Versuche es bitte später nochmal."
 
 # config version (no touchy)
 version: 1
