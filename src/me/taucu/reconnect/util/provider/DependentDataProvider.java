@@ -71,7 +71,7 @@ public class DependentDataProvider {
     }
 
     static final String [] langs = {
-        "en_US.yml", "ru_RU.yml", "de_DE.yml"
+        "en_US.yml", "ru_RU.yml", "de_DE.yml", "zh_CN.yml"
     };
 
     @SneakyThrows
