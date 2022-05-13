@@ -7,7 +7,7 @@ variables:
   # `installAtEnd` and `deployAtEnd` are only effective with recent version of the corresponding plugins.
   MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true"
 
-# This template uses jdk16 for verifying and deploying images
+# This template uses jdk8 for verifying and deploying images
 image: maven:3.8.1-jdk-8
 
 # Cache downloaded dependencies and plugins between builds.
@@ -31,15 +31,14 @@ cache:
     variables:
       - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# Verify merge requests using JDK16
-package:jdk16:
+# Verify merge requests using JDK8
+package:jdk8:
   <<: *package
 
 # To deploy packages from CI, create a ci_settings.xml file
 # For deploying packages to GitLab's Maven Repository: See  for more details.
-# Please note: The GitLab Maven Repository is currently only available in GitLab Premium / Ultimate.
 # For `master` branch run `mvn deploy` automatically.
-deploy:jdk16:
+deploy:jdk8:
   stage: deploy
   script:
     - if [ ! -f ci_settings.xml ];
