@@ -21,6 +21,7 @@
 					<include>lang/ru_RU.yml</include>
 					<include>lang/en_US.yml</include>
 					<include>lang/de_DE.yml</include>
+					<include>lang/zh_CN.yml</include>
 
 				</includes>
 				<filtering>true</filtering>
