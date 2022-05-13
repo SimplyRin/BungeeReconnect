@@ -98,6 +98,15 @@
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
+
+	<distributionManagement>
+		<repository>
+			<id>gitlab-maven</id>
+			<!--suppress UnresolvedMavenProperty -->
+			<url>https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/maven</url>
+		</repository>
+	</distributionManagement>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
