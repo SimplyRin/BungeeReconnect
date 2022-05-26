@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>me.taucu</groupId>
 	<artifactId>reconnect</artifactId>
-	<version>1.5.4</version>
+	<version>${CI_COMMIT_REF_NAME}</version>
 	<packaging>jar</packaging>
 	<name>Bungee-Reconnect</name>
 	<description>A bungeecord plugin that reconnects players to an underlying server if it goes down, or they otherwise lose connection to it</description>
