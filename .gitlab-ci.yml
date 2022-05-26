@@ -16,9 +16,9 @@ cache:
   paths:
     - .m2/repository
 
-# For merge requests do not `deploy` but only run `package`.
+# For merge requests do not `deploy` but only run `build`.
 # See https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
-package:
+build:
   stage: build
   script:
     - 'mvn $MAVEN_CLI_OPTS package'
