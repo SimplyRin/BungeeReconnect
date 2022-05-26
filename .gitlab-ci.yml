@@ -28,9 +28,9 @@ cache:
     paths:
       - './Bungee-Reconnect*'
   only:
-    - tags
-  except:
     - branches
+  except:
+    - tags
 
 # Verify merge requests using JDK8
 package:jdk8:
@@ -52,5 +52,6 @@ deploy:jdk8:
     paths:
       - './Bungee-Reconnect*'
   only:
-    variables:
-      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - tags
+  except:
+    - branches
