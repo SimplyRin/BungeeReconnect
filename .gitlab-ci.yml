@@ -16,9 +16,9 @@ cache:
   paths:
     - .m2/repository
 
-# For merge requests do not `deploy` but only run `package`.
+# For merge requests do not `deploy` but only run `build`.
 # See https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
-.package: &package
+build:
   stage: build
   script:
     - 'mvn $MAVEN_CLI_OPTS package'
@@ -32,14 +32,10 @@ cache:
   except:
     - tags
 
-# Verify merge requests using JDK8
-package:jdk8:
-  <<: *package
-
 # To deploy packages from CI, create a ci_settings.xml file
 # For deploying packages to GitLab's Maven Repository: See  for more details.
 # For `master` branch run `mvn deploy` automatically.
-deploy:jdk8:
+deploy:
   stage: deploy
   script:
     - if [ ! -f ci_settings.xml ];
