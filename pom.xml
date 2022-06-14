@@ -90,7 +90,7 @@
 		<dependency>
 			<groupId>com.github.SpigotMC</groupId>
 			<artifactId>BungeeCord</artifactId>
-			<version>34d416a4e8</version>
+			<version>ff5727c5ef</version>
             <scope>provided</scope>
 		</dependency>
 		 <dependency>
