@@ -14,7 +14,7 @@ import java.util.List;
 
 public class ClientboundStopSoundPacket extends AbstractPacket {
 
-    private static final SoundCategory[] CATEGORIES = SoundCategory.values();
+    static final SoundCategory[] CATEGORIES = SoundCategory.values();
 
     private String name;
     private SoundCategory category;
