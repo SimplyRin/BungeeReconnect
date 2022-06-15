@@ -1,12 +1,16 @@
 package me.taucu.reconnect;
 
 import com.google.common.base.Strings;
+import dev.simplix.protocolize.api.SoundCategory;
+import dev.simplix.protocolize.data.Sound;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
 import me.taucu.reconnect.util.ConfigUtil;
 import me.taucu.reconnect.util.provider.DependentData;
 import me.taucu.reconnect.util.provider.DependentDataProvider;
+import me.taucu.reconnect.util.provider.Music;
+import me.taucu.reconnect.util.provider.MusicProvider;
 import net.md_5.bungee.ServerConnection;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ChatColor;
@@ -44,6 +48,10 @@ public class Reconnect extends Plugin implements Listener {
     private boolean debug = false;
     
     private Animations animations = new Animations(this);
+
+    private MusicProvider musicProvider = null;
+
+    private List<String> reconnectMusics = null;
     
     private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connectFinalizationNanos = 0;
@@ -70,7 +78,7 @@ public class Reconnect extends Plugin implements Listener {
         
         // setup command
         getProxy().getPluginManager().registerCommand(this, new CommandReconnect(this));
-        
+
         // also registers events etc
         reload();
     }
@@ -150,6 +158,31 @@ public class Reconnect extends Plugin implements Listener {
         } else {
             log.warning("Animations configuration is null. Animations will not work until this is resolved.");
         }
+
+        try {
+            if (getProxy().getPluginManager().getPlugin("Protocolize") != null) {
+                Configuration reconMusic = configuration.getSection("Reconnection Music");
+                List<Music> musics = new ArrayList<>();
+                for (String k : reconMusic.getKeys()) {
+                    Configuration music = reconMusic.getSection(k);
+                    try {
+                        musics.add(new Music(
+                                Sound.valueOf(k.toUpperCase()),
+                                SoundCategory.valueOf(music.getString("Category").toUpperCase()),
+                                music.getFloat("Volume"),
+                                music.getFloat("Pitch")
+                        ));
+                    } catch (IllegalArgumentException e) {
+                        log.log(Level.SEVERE, "Error while loading music \"" + k + "\"", e);
+                    }
+                }
+                this.musicProvider = new MusicProvider(musics);
+            }
+        } catch (LinkageError e) {
+            log.log(Level.SEVERE, "Failed to initialize MusicProvider due to a LinkageError", e);
+        }
+
+        this.reconnectMusics = configuration.getStringList("Music");
 
         String[] defaultLocale = configuration.getString("default-locale").split("_");
         if (defaultLocale.length != 2) {
@@ -459,6 +492,10 @@ public class Reconnect extends Plugin implements Listener {
   
     public Animations getAnimations() {
         return animations;
+    }
+
+    public MusicProvider getMusicProvider() {
+        return musicProvider;
     }
     
     public String animate(Reconnector c, String s) {
