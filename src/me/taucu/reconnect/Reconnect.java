@@ -6,6 +6,7 @@ import dev.simplix.protocolize.data.Sound;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
+import me.taucu.reconnect.packets.ClientboundStopSoundPacket;
 import me.taucu.reconnect.util.ConfigUtil;
 import me.taucu.reconnect.util.provider.DependentData;
 import me.taucu.reconnect.util.provider.DependentDataProvider;
@@ -174,6 +175,7 @@ public class Reconnect extends Plugin implements Listener {
                         log.log(Level.SEVERE, "Error while loading music \"" + k + "\"", e);
                     }
                 }
+                ClientboundStopSoundPacket.register();
                 this.musicProvider = new MusicProvider(musics);
             }
         } catch (LinkageError e) {

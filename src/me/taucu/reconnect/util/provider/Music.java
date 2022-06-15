@@ -3,6 +3,7 @@ package me.taucu.reconnect.util.provider;
 import dev.simplix.protocolize.api.SoundCategory;
 import dev.simplix.protocolize.api.player.ProtocolizePlayer;
 import dev.simplix.protocolize.data.Sound;
+import me.taucu.reconnect.packets.ClientboundStopSoundPacket;
 
 public class Music {
 
@@ -19,6 +20,7 @@ public class Music {
     }
 
     public void play(ProtocolizePlayer player) {
+        player.sendPacket(new ClientboundStopSoundPacket());
         player.playSound(music, category, volume, pitch);
     }
 
