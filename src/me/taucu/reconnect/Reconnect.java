@@ -175,8 +175,11 @@ public class Reconnect extends Plugin implements Listener {
                         log.log(Level.SEVERE, "Error while loading music \"" + k + "\"", e);
                     }
                 }
-                ClientboundStopSoundPacket.register();
-                this.musicProvider = new MusicProvider(musics);
+
+                if (!musics.isEmpty()) {
+                    ClientboundStopSoundPacket.register();
+                    this.musicProvider = new MusicProvider(musics);
+                }
             }
         } catch (LinkageError e) {
             log.log(Level.SEVERE, "Failed to initialize MusicProvider due to a LinkageError", e);
