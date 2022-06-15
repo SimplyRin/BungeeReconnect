@@ -1,7 +1,9 @@
 package me.taucu.reconnect.util.provider;
 
 import dev.simplix.protocolize.api.Protocolize;
+import dev.simplix.protocolize.api.player.ProtocolizePlayer;
 import dev.simplix.protocolize.api.providers.ProtocolizePlayerProvider;
+import me.taucu.reconnect.packets.ClientboundStopSoundPacket;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.ArrayList;
@@ -20,8 +22,10 @@ public class MusicProvider {
 
     public void playMusic(ProxiedPlayer player) {
         if (musics.size() > 0) {
+            ProtocolizePlayer protoPlayer = provider.player(player.getUniqueId());
+            protoPlayer.sendPacket(new ClientboundStopSoundPacket());
             musics.get(ThreadLocalRandom.current().nextInt(musics.size()))
-                    .play(provider.player(player.getUniqueId()));
+                    .play(protoPlayer);
         }
     }
 
