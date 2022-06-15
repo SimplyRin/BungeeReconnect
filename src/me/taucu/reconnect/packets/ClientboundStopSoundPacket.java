@@ -1,17 +1,16 @@
 package me.taucu.reconnect.packets;
 
 import dev.simplix.protocolize.api.PacketDirection;
-import dev.simplix.protocolize.api.Protocol;
-import dev.simplix.protocolize.api.Protocolize;
 import dev.simplix.protocolize.api.SoundCategory;
+import dev.simplix.protocolize.api.mapping.AbstractProtocolMapping;
 import dev.simplix.protocolize.api.mapping.ProtocolIdMapping;
 import dev.simplix.protocolize.api.packet.AbstractPacket;
 import dev.simplix.protocolize.api.util.ProtocolUtil;
 import io.netty.buffer.ByteBuf;
-import me.taucu.reconnect.util.RangedProtocolMapping;
 import net.md_5.bungee.protocol.BadPacketException;
 
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class ClientboundStopSoundPacket extends AbstractPacket {
 
@@ -82,20 +81,17 @@ public class ClientboundStopSoundPacket extends AbstractPacket {
         this.category = category;
     }
 
-    public static void register() {
-        ArrayList<ProtocolIdMapping> idMap = new ArrayList<>();
-        idMap.add(new RangedProtocolMapping(0x49, 343, 344));
-        idMap.add(new RangedProtocolMapping(0x4A, 345, 351));
-        idMap.add(new RangedProtocolMapping(0x4B, 352, 388));
-        idMap.add(new RangedProtocolMapping(0x4C, 389, 450));
-        idMap.add(new RangedProtocolMapping(0x4D, 451, 470));
-        idMap.add(new RangedProtocolMapping(0x52, 471, 498));
-        idMap.add(new RangedProtocolMapping(0x53, 550, 719));
-        idMap.add(new RangedProtocolMapping(0x52, 721, 754));
-        idMap.add(new RangedProtocolMapping(0x5D, 755, 756));
-        idMap.add(new RangedProtocolMapping(0x5E, 757, 759));
-
-        Protocolize.protocolRegistration().registerPacket(idMap, Protocol.PLAY, PacketDirection.CLIENTBOUND, ClientboundStopSoundPacket.class);
-    }
+    public static final List<ProtocolIdMapping> MAPPINGS = Arrays.asList(
+            AbstractProtocolMapping.rangedIdMapping(343, 344, 0x49),
+            AbstractProtocolMapping.rangedIdMapping(345, 351, 0x4A),
+            AbstractProtocolMapping.rangedIdMapping(352, 388, 0x4B),
+            AbstractProtocolMapping.rangedIdMapping(389, 450, 0x4C),
+            AbstractProtocolMapping.rangedIdMapping(451, 470, 0x4D),
+            AbstractProtocolMapping.rangedIdMapping(471, 498, 0x52),
+            AbstractProtocolMapping.rangedIdMapping(550, 719, 0x53),
+            AbstractProtocolMapping.rangedIdMapping(721, 754, 0x52),
+            AbstractProtocolMapping.rangedIdMapping(755, 756, 0x5D),
+            AbstractProtocolMapping.rangedIdMapping(757, 759, 0x5E)
+    );
 
 }

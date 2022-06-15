@@ -1,6 +1,9 @@
 package me.taucu.reconnect;
 
 import com.google.common.base.Strings;
+import dev.simplix.protocolize.api.PacketDirection;
+import dev.simplix.protocolize.api.Protocol;
+import dev.simplix.protocolize.api.Protocolize;
 import dev.simplix.protocolize.api.SoundCategory;
 import dev.simplix.protocolize.data.Sound;
 import me.taucu.reconnect.api.ServerReconnectEvent;
@@ -177,7 +180,7 @@ public class Reconnect extends Plugin implements Listener {
                 }
 
                 if (!musics.isEmpty()) {
-                    ClientboundStopSoundPacket.register();
+                    Protocolize.protocolRegistration().registerPacket(ClientboundStopSoundPacket.MAPPINGS, Protocol.PLAY, PacketDirection.CLIENTBOUND, ClientboundStopSoundPacket.class);
                     this.musicProvider = new MusicProvider(musics);
                 }
             }
