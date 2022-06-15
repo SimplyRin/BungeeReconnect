@@ -50,8 +50,6 @@ public class Reconnect extends Plugin implements Listener {
     private Animations animations = new Animations(this);
 
     private MusicProvider musicProvider = null;
-
-    private List<String> reconnectMusics = null;
     
     private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connectFinalizationNanos = 0;
@@ -181,8 +179,6 @@ public class Reconnect extends Plugin implements Listener {
         } catch (LinkageError e) {
             log.log(Level.SEVERE, "Failed to initialize MusicProvider due to a LinkageError", e);
         }
-
-        this.reconnectMusics = configuration.getStringList("Music");
 
         String[] defaultLocale = configuration.getString("default-locale").split("_");
         if (defaultLocale.length != 2) {

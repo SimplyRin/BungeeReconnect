@@ -19,7 +19,6 @@ public class Music {
     }
 
     public void play(ProtocolizePlayer player) {
-        //TODO player.sendPacket(new ClientboundStopSoundPacket());
         player.playSound(music, category, volume, pitch);
     }
 
