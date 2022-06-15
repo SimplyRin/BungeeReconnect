@@ -14,7 +14,7 @@ import java.util.List;
 
 public class ClientboundStopSoundPacket extends AbstractPacket {
 
-    static final SoundCategory[] CATEGORIES = SoundCategory.values();
+    static final SoundCategory[] SOUND_CATEGORIES = SoundCategory.values();
 
     private String name;
     private SoundCategory category;
@@ -31,8 +31,8 @@ public class ClientboundStopSoundPacket extends AbstractPacket {
         int flag = buf.readByte();
         if ((flag & 1) > 0) {
             int categoryId = ProtocolUtil.readVarInt(buf);
-            if (categoryId >= 0 && categoryId < CATEGORIES.length) {
-                category = CATEGORIES[categoryId];
+            if (categoryId >= 0 && categoryId < SOUND_CATEGORIES.length) {
+                category = SOUND_CATEGORIES[categoryId];
             } else {
                 throw new BadPacketException("categoryId is out of range: " + categoryId);
             }
