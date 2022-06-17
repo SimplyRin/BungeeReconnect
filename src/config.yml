@@ -52,8 +52,8 @@ default-locale: "en_US"
 # The amount of milliseconds the plugin will wait before attempting to check if the server is alive.
 # This must be at least 500, however if you use an automatic restart plugin that kicks players
 #   reconnect may actually reconnect them before the server stops accepting new connections. This may cause unstable behavior.
-# Recommended value is 8000
-delay-before-trying: 8000
+# Recommended value is 16000
+delay-before-trying: 16000
 
 # The amount of milliseconds the plugin will wait between each new connection attempt per player - per server.
 # Depending on server size and hardware having 20+ people reconnect at once can cause issues in the game, plugins and or databases.
