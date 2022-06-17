@@ -28,6 +28,7 @@ Animations:
 # Music that should play when a user is reconnecting
 # If there is more than one value it will randomly select one
 # Requires Protocolize to work
+# For a list of sounds see: https://gitlab.com/-/snippets/2356589
 Reconnection Music:
   MUSIC_CREDITS:
     Category: master
