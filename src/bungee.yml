@@ -2,3 +2,4 @@ name: Reconnect
 version: ${pom.version}
 main: me.taucu.reconnect.Reconnect
 author: TauCubed (Development, commands & overhaul), 5zig (Initial Development), Krymonota (Contribution), Terrobility (Addition Config), dallasxfulcanelly (dynamic localization)
+softDepends: [Protocolize]

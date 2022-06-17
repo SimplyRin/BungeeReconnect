@@ -14,8 +14,9 @@ public class ConfigUtil {
 
     public static File renameOldConfig(File oldConfig) {
         try {
+            String oldExtension = getExtension(oldConfig);
             for (int i = 0; i < 100; i++) {
-                File dest = new File(oldConfig.getAbsolutePath() + ".old." + i);
+                File dest = changeExtension(oldConfig, ".old." + i + oldExtension);
                 if (!dest.isFile()) {
                     return Files.move(oldConfig.toPath(), dest.toPath()).toFile();
                 }
@@ -24,6 +25,17 @@ public class ConfigUtil {
         } catch (IOException e) {
             throw new RuntimeException("IOException while renaming old config", e);
         }
+    }
+
+    public static String getExtension(File f) {
+        String name = f.getName();
+        return name.substring(name.lastIndexOf('.'));
+    }
+
+    public static File changeExtension(File f, String newExtension) {
+        String name = f.getName();
+        String strippedName = name.substring(0, name.lastIndexOf('.'));
+        return new File(f.getParentFile(), strippedName + newExtension);
     }
 
     public static void copyInternalFile(File dest, String internalFile) throws IOException {

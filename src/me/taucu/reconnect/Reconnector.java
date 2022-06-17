@@ -10,6 +10,7 @@ import lombok.Setter;
 import me.taucu.reconnect.net.ReconnectChannelInitializer;
 import me.taucu.reconnect.util.MyPipelineUtils;
 import me.taucu.reconnect.util.provider.DependentData;
+import me.taucu.reconnect.util.provider.MusicProvider;
 import me.taucu.reconnect.util.provider.TitleViewEntry;
 import me.taucu.reconnect.util.scheduler.Sched;
 import net.md_5.bungee.BungeeServerInfo;
@@ -431,6 +432,10 @@ public class Reconnector {
     private void startSendingUpdates() {
         if (!updatesEnabled) {// Only allow invocation once
             updatesEnabled = true;
+            MusicProvider provider = reconnect.getMusicProvider();
+            if (provider != null) {
+                provider.playMusic(user);
+            }
             update();
         }
     }
