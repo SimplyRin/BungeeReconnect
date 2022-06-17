@@ -460,7 +460,8 @@ public class Reconnector {
         if (statusCheck() && updatesEnabled && !isCancelled) {
             // Send keep alive packet so user will not timeout.
             user.unsafe().sendPacket(new KeepAlive(rand.nextLong()));
-            if (channelFuture == null) {
+            ChannelFuture future = channelFuture;
+            if (future == null || !future.channel().isActive()) {
                 // Send fancy Title
                 if (!(reconn.getTitle().isEmpty() && reconn.getSubTitle().isEmpty())) {
                     createReconnectTitle().send(user);
