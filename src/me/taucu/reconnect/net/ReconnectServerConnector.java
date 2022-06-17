@@ -6,7 +6,6 @@ import net.md_5.bungee.BungeeServerInfo;
 import net.md_5.bungee.ServerConnector;
 import net.md_5.bungee.UserConnection;
 import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.connection.CancelSendSignal;
 import net.md_5.bungee.protocol.packet.Kick;
 import net.md_5.bungee.protocol.packet.LoginSuccess;
 
@@ -39,8 +38,6 @@ public class ReconnectServerConnector extends ServerConnector {
         if (connector.isCancelled()) {
             instance.debug("  connector is cancelled, handle normally");
             super.exception(t);
-        } else {
-            throw CancelSendSignal.INSTANCE;
         }
     }
     
@@ -50,8 +47,6 @@ public class ReconnectServerConnector extends ServerConnector {
         if (connector.isCancelled()) {
             instance.debug("  connector is cancelled, handle normally");
             super.handle(kick);
-        } else {
-            throw CancelSendSignal.INSTANCE;
         }
     }
     
