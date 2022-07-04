@@ -95,4 +95,8 @@ public class ClientboundStopSoundPacket extends AbstractPacket {
             AbstractProtocolMapping.rangedIdMapping(757, 759, 0x5E)
     );
 
+    public static boolean isSupportedVersion(int protocolVersion) {
+        return MAPPINGS.stream().anyMatch(m -> m.inRange(protocolVersion));
+    }
+
 }

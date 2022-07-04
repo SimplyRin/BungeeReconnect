@@ -24,7 +24,9 @@ public class MusicProvider {
     public void playMusic(ProxiedPlayer player) {
         if (musics.size() > 0) {
             ProtocolizePlayer protoPlayer = provider.player(player.getUniqueId());
-            protoPlayer.sendPacket(new ClientboundStopSoundPacket());
+            if (ClientboundStopSoundPacket.isSupportedVersion(protoPlayer.protocolVersion())) {
+                protoPlayer.sendPacket(new ClientboundStopSoundPacket());
+            }
             musics.get(ThreadLocalRandom.current().nextInt(musics.size()))
                     .play(protoPlayer);
         }
