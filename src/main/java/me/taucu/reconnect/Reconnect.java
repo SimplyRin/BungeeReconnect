@@ -162,7 +162,7 @@ public class Reconnect extends Plugin implements Listener {
         }
 
         try {
-            if (getProxy().getPluginManager().getPlugin("Protocolize") != null) {
+            if (configuration.get("Reconnection Music") instanceof Configuration && getProxy().getPluginManager().getPlugin("Protocolize") != null) {
                 Configuration reconMusic = configuration.getSection("Reconnection Music");
                 List<Music> musics = new ArrayList<>();
                 for (String k : reconMusic.getKeys()) {
