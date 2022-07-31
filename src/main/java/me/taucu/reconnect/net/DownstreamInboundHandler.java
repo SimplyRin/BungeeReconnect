@@ -182,8 +182,8 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     @Override
     @SuppressWarnings("deprecation")
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) {
+        instance.debug(this, "HANDLE_EXCEPTION", yeet);
         if (ctx.channel().isActive() && ucon.isConnected()) {
-            instance.debug(this, "HANDLE_EXCEPTION", yeet);
             if (startedReconnecting) {
                 instance.debug(this, "already reconnecting");
                 ctx.close();
