@@ -46,7 +46,7 @@ public class Reconnector {
     private final ServerConnection currentServer;
     private final BungeeServerInfo targetInfo;
 
-    //user can change locale hence change provider(todo)
+    //user can change locale hence change provider
     @Setter private DependentData data;
 
     // The time start() was called/object constructed.
@@ -188,7 +188,7 @@ public class Reconnector {
     
     /**
      * Only when called this reconnector will attempt to function Can only be called once.
-     * 
+     * <p>
      * Once the reconnector is finished/cancelled This method will not work! Create a new instance instead
      */
     public synchronized void start() {
@@ -432,11 +432,15 @@ public class Reconnector {
     private void startSendingUpdates() {
         if (!updatesEnabled) {// Only allow invocation once
             updatesEnabled = true;
-            MusicProvider provider = reconnect.getMusicProvider();
-            if (provider != null) {
-                provider.playMusic(user);
-            }
             update();
+            try {
+                MusicProvider provider = reconnect.getMusicProvider();
+                if (provider != null) {
+                    provider.playMusic(user);
+                }
+            } catch (Exception e) {
+                log.log(Level.SEVERE, "Exception while playing reconnect music: ", e);
+            }
         }
     }
     
