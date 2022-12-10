@@ -12,16 +12,16 @@ import net.md_5.bungee.protocol.BadPacketException;
 import java.util.Arrays;
 import java.util.List;
 
-public class ClientboundStopSoundPacket extends AbstractPacket {
+public class PS2CStopSoundPacket extends AbstractPacket {
 
-    static final SoundCategory[] SOUND_CATEGORIES = SoundCategory.values();
+    public static final SoundCategory[] SOUND_CATEGORIES = SoundCategory.values();
 
     private String name;
     private SoundCategory category;
 
-    public ClientboundStopSoundPacket() {}
+    public PS2CStopSoundPacket() {}
 
-    public ClientboundStopSoundPacket(String name, SoundCategory category) {
+    public PS2CStopSoundPacket(String name, SoundCategory category) {
         this.name = name;
         this.category = category;
     }
@@ -92,7 +92,8 @@ public class ClientboundStopSoundPacket extends AbstractPacket {
             AbstractProtocolMapping.rangedIdMapping(550, 719, 0x53),
             AbstractProtocolMapping.rangedIdMapping(721, 754, 0x52),
             AbstractProtocolMapping.rangedIdMapping(755, 756, 0x5D),
-            AbstractProtocolMapping.rangedIdMapping(757, 759, 0x5E)
+            AbstractProtocolMapping.rangedIdMapping(757, 759, 0x5E),
+            AbstractProtocolMapping.rangedIdMapping(759, 761, 0x5F)
     );
 
     public static boolean isSupportedVersion(int protocolVersion) {
