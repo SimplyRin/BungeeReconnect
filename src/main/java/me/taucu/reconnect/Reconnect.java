@@ -9,7 +9,7 @@ import dev.simplix.protocolize.data.Sound;
 import me.taucu.reconnect.api.ServerReconnectEvent;
 import me.taucu.reconnect.command.CommandReconnect;
 import me.taucu.reconnect.net.DownstreamInboundHandler;
-import me.taucu.reconnect.packets.ClientboundStopSoundPacket;
+import me.taucu.reconnect.packets.PS2CStopSoundPacket;
 import me.taucu.reconnect.util.ConfigUtil;
 import me.taucu.reconnect.util.provider.DependentData;
 import me.taucu.reconnect.util.provider.DependentDataProvider;
@@ -180,7 +180,7 @@ public class Reconnect extends Plugin implements Listener {
                 }
 
                 if (!musics.isEmpty()) {
-                    Protocolize.protocolRegistration().registerPacket(ClientboundStopSoundPacket.MAPPINGS, Protocol.PLAY, PacketDirection.CLIENTBOUND, ClientboundStopSoundPacket.class);
+                    Protocolize.protocolRegistration().registerPacket(PS2CStopSoundPacket.MAPPINGS, Protocol.PLAY, PacketDirection.CLIENTBOUND, PS2CStopSoundPacket.class);
                     this.musicProvider = new MusicProvider(musics);
                 }
             }

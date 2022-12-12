@@ -4,7 +4,7 @@ import dev.simplix.protocolize.api.Protocolize;
 import dev.simplix.protocolize.api.player.ProtocolizePlayer;
 import dev.simplix.protocolize.api.providers.ProtocolizePlayerProvider;
 import lombok.Getter;
-import me.taucu.reconnect.packets.ClientboundStopSoundPacket;
+import me.taucu.reconnect.packets.PS2CStopSoundPacket;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.ArrayList;
@@ -24,8 +24,8 @@ public class MusicProvider {
     public void playMusic(ProxiedPlayer player) {
         if (musics.size() > 0) {
             ProtocolizePlayer protoPlayer = provider.player(player.getUniqueId());
-            if (ClientboundStopSoundPacket.isSupportedVersion(protoPlayer.protocolVersion())) {
-                protoPlayer.sendPacket(new ClientboundStopSoundPacket());
+            if (PS2CStopSoundPacket.isSupportedVersion(protoPlayer.protocolVersion())) {
+                protoPlayer.sendPacket(new PS2CStopSoundPacket());
             }
             musics.get(ThreadLocalRandom.current().nextInt(musics.size()))
                     .play(protoPlayer);
