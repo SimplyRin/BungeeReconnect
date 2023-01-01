@@ -183,9 +183,12 @@ public class Reconnect extends Plugin implements Listener {
                     Protocolize.protocolRegistration().registerPacket(PS2CStopSoundPacket.MAPPINGS, Protocol.PLAY, PacketDirection.CLIENTBOUND, PS2CStopSoundPacket.class);
                     this.musicProvider = new MusicProvider(musics);
                 }
+            } else {
+                this.musicProvider = null;
             }
         } catch (LinkageError e) {
             log.log(Level.SEVERE, "Failed to initialize MusicProvider due to a LinkageError", e);
+            this.musicProvider = null;
         }
 
         String[] defaultLocale = configuration.getString("default-locale").split("_");
