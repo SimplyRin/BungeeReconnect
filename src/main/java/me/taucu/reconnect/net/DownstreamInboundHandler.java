@@ -142,8 +142,12 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                             } else {
                                 instance.debug(this, "not handling because reconnectIfApplicable returned false");
                             }
-                        } else {
-                            instance.debug(this, "not handling because the kick message does not match the configured message.");
+                        } else if (instance.isDebug()) {
+                            if (instance.isExcludedKick(kickMessage)) {
+                                instance.debug(this, "not handling because the kick message matches excluded message.");
+                            } else {
+                                instance.debug(this, "not handling because the kick message does not match the configured message.");
+                            }
                         }
                     } else {
                         instance.debug(this, "not handling because it's an ignored server.");
@@ -184,18 +188,23 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable yeet) {
         instance.debug(this, "HANDLE_EXCEPTION", yeet);
         if (ctx.channel().isActive() && ucon.isConnected()) {
-            if (startedReconnecting) {
-                instance.debug(this, "already reconnecting");
-                ctx.close();
-                return;
-            } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
-                instance.debug(this, "reconnecting");
-                startedReconnecting = true;
-                server.setObsolete(true);
-                log("Exception caught: " + (yeet == null ? "null" : yeet.getLocalizedMessage()));
-                ctx.close();
-                // return so fireExceptionCaught isn't called
-                return;
+            if (instance.isExcludedKick(yeet == null ? "null" : yeet.getMessage())) {
+                if (instance.isDebug()) instance.debug("excluded kick message: " + (yeet == null ? "null" : yeet.getMessage()));
+                // do not return to allow fireExceptionCaught to be called normally
+            } else {
+                if (startedReconnecting) {
+                    instance.debug(this, "already reconnecting");
+                    ctx.close();
+                    return;
+                } else if (ucon.getServer() == server && instance.reconnectIfApplicable(ucon, server)) {
+                    instance.debug(this, "reconnecting");
+                    startedReconnecting = true;
+                    server.setObsolete(true);
+                    log("Exception caught: " + (yeet == null ? "null" : yeet.getLocalizedMessage()));
+                    ctx.close();
+                    // return so fireExceptionCaught isn't called
+                    return;
+                }
             }
         }
         ctx.fireExceptionCaught(yeet);

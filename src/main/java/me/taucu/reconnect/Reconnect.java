@@ -40,6 +40,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -55,7 +56,7 @@ public class Reconnect extends Plugin implements Listener {
 
     private MusicProvider musicProvider = null;
     
-    private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50;
+    private int delayBeforeTrying = 0, reconnectTimeout = 0, titleUpdateRate = 50, maxReconnects = 30;
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connectFinalizationNanos = 0;
     
     private List<String> serversList = new ArrayList<>();
@@ -64,13 +65,17 @@ public class Reconnect extends Plugin implements Listener {
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
 
+    private Pattern excludePattern = null;
+
     DependentDataProvider langProvider = new DependentDataProvider(this);
-    ConcurrentHashMap<Object, Locale> localeByUUID = new ConcurrentHashMap<>();
+    ConcurrentHashMap<UUID, Locale> localeByUUID = new ConcurrentHashMap<>();
     
     /**
      * A HashMap containing all reconnect tasks.
      */
     private final HashMap<UUID, Reconnector> reconnectors = new HashMap<>();
+
+    private final ConcurrentHashMap<UUID, AtomicInteger> uuidToAttemptsMap = new ConcurrentHashMap<>();
     
     private final QueueManager queueManager = new QueueManager(this);
     
@@ -127,7 +132,7 @@ public class Reconnect extends Plugin implements Listener {
         File configFile = new File(getDataFolder(), "config.yml");
         // create data folder if not exists already
         if (!getDataFolder().exists() && !getDataFolder().mkdir()) {
-            throw new IOException("Couldn't Mkdirs for plugin directory \"" + getDataFolder().getPath() + "\"");
+            throw new IOException("Couldn't mkdirs for plugin directory \"" + getDataFolder().getPath() + "\"");
         } else {
             // use the internal config in the jar for version comparison and defaults
             
@@ -146,10 +151,10 @@ public class Reconnect extends Plugin implements Listener {
         }
         
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
+        Metrics metrics = new Metrics(this, 14792);
     }
 
     private void processConfig(Configuration configuration, Logger log) {
-        
         this.debug = configuration.getBoolean("debug");
         
         Configuration animationsConfig = configuration.getSection("Animations");
@@ -238,14 +243,29 @@ public class Reconnect extends Plugin implements Listener {
             }
         }
 
-        Metrics metrics = new Metrics(this, 14792);
+        String excludeText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.exclude-pattern"));
+        if (Strings.isNullOrEmpty(excludeText)) {
+            excludePattern = null;
+        } else {
+            try {
+                excludePattern = Pattern.compile(excludeText);
+            } catch (PatternSyntaxException e) {
+                log.severe("regex \"shutdown.exclude-pattern\" is malformed and was unable to be compiled.");
+                throw e;
+            }
+        }
     }
     
     @EventHandler(priority = EventPriority.HIGH)
     public void onServerSwitch(ServerSwitchEvent event) {
         debug("ON_SERVER_SWITCH from=" + (event.getFrom() != null ? event.getFrom().getName() : "null") + " to=" + event.getPlayer().getServer().getInfo().getName());
         UserConnection ucon = (UserConnection) event.getPlayer();
-        
+
+        // reset attempts only if joining
+        if (event.getFrom() == null) {
+            uuidToAttemptsMap.put(ucon.getUniqueId(), new AtomicInteger());
+        }
+
         // we need to detect exceptions and kicks before bungeecord does,
         // so we register a channel handler before HandlerBoss
         DownstreamInboundHandler.attachHandlerTo(ucon, this);
@@ -270,6 +290,7 @@ public class Reconnect extends Plugin implements Listener {
             re.cancel(true);
         }
         localeByUUID.remove(e.getPlayer().getUniqueId());
+        uuidToAttemptsMap.remove(e.getPlayer().getUniqueId());
     }
 
     @EventHandler
@@ -336,7 +357,13 @@ public class Reconnect extends Plugin implements Listener {
         if (isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
             debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
         } else {
-            return reconnectIfOnline(ucon, server);
+            AtomicInteger attempts = getReconnectAttempts(ucon.getUniqueId());
+            if (attempts == null || attempts.get() >= maxReconnects) {
+                debug(this, "not reconnected because the user has reconnected too many times");
+            } else {
+                if (attempts != null) attempts.incrementAndGet();
+                return reconnectIfOnline(ucon, server);
+            }
         }
         return false;
     }
@@ -428,6 +455,16 @@ public class Reconnect extends Plugin implements Listener {
             reconnectors.remove(reconnector.getUUID(), reconnector);
         }
     }
+
+    /**
+     * Gets the number of reconnect attempts the given user has made.
+     *
+     * @param uid The UUID of the user.
+     * @return the number of attempts or null if the UUID is not found.
+     */
+    public AtomicInteger getReconnectAttempts(UUID uid) {
+        return uuidToAttemptsMap.get(uid);
+    }
     
     /**
      * Causes the user to fall back on the provided iterator of servers
@@ -490,11 +527,16 @@ public class Reconnect extends Plugin implements Listener {
     }
     
     public boolean isReconnectKick(String message) {
+        if (isExcludedKick(message)) return false;
         if (shutdownPattern != null) {
             return shutdownPattern.matcher(message).matches();
         } else {
             return shutdownMessage.isEmpty() || shutdownMessage.equals(message);
         }
+    }
+
+    public boolean isExcludedKick(String message) {
+        return excludePattern != null && excludePattern.matcher(message).matches();
     }
   
     public Animations getAnimations() {
@@ -564,5 +606,9 @@ public class Reconnect extends Plugin implements Listener {
             getLogger().log(Level.FINE, clazzName + ":" + element.getLineNumber() + " " + m);
         }
     }
-    
+
+    public boolean isDebug() {
+        return debug;
+    }
+
 }
