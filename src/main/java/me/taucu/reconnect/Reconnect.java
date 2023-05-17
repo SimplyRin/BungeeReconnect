@@ -465,6 +465,10 @@ public class Reconnect extends Plugin implements Listener {
     public AtomicInteger getReconnectAttempts(UUID uid) {
         return uuidToAttemptsMap.get(uid);
     }
+
+    public int getMaxReconnectAttempts() {
+        return maxReconnects;
+    }
     
     /**
      * Causes the user to fall back on the provided iterator of servers
