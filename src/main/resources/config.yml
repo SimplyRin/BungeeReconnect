@@ -99,6 +99,11 @@ servers:
     - "some_server"
     - "some_other_server"
 
+  # Only reconnect players on these servers that have a specified permission
+  permissions:
+    some_server: "some_permission"
+    some_other_server: "some_other_permission"
+
 # This block is necessary for the plugin to differentiate whether a kick happened because of a shutdown or not.
 shutdown:  
   # Note: Formatting codes (color codes) will be ignored here. So don't include them.

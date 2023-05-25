@@ -61,6 +61,8 @@ public class Reconnect extends Plugin implements Listener {
     
     private List<String> serversList = new ArrayList<>();
     private boolean serversListIsWhitelist = true;
+
+    private Map<ServerInfo, String> serverInfoToPermissionMap = new ConcurrentHashMap<>();
     
     private String shutdownMessage = "Server closed";
     private Pattern shutdownPattern = null;
@@ -219,7 +221,18 @@ public class Reconnect extends Plugin implements Listener {
         // obtain ignored/allowed servers from config
         serversListIsWhitelist = resolveMode(configuration.getString("servers.mode"));
         serversList = configuration.getStringList("servers.list");
-        
+
+        // get and map servers that required a permission to reconnect
+        serverInfoToPermissionMap.clear();
+        Configuration permsSection = configuration.getSection("servers.permissions");
+        for (String serverName : permsSection.getKeys()) {
+            String perm = permsSection.getString(serverName, null);
+            if (perm != null && !perm.isEmpty()) {
+                ServerInfo serverInfo = ProxyServer.getInstance().getServerInfo(serverName);
+                serverInfoToPermissionMap.put(serverInfo, perm);
+            }
+        }
+
         // obtain shutdown values from config
         String shutdownText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.text"));
         
@@ -243,6 +256,7 @@ public class Reconnect extends Plugin implements Listener {
             }
         }
 
+        // get and compile excluded servers pattern
         String excludeText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.exclude-pattern"));
         if (Strings.isNullOrEmpty(excludeText)) {
             excludePattern = null;
@@ -320,6 +334,10 @@ public class Reconnect extends Plugin implements Listener {
     public boolean isIgnoredServer(ServerInfo server) {
         return serversListIsWhitelist ^ serversList.contains(server.getName());
     }
+
+    public String getPermissionForServer(ServerInfo server) {
+        return serverInfoToPermissionMap.get(server);
+    }
     
     /**
      * fires a ServerReconnectEvent.
@@ -357,6 +375,12 @@ public class Reconnect extends Plugin implements Listener {
         if (isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
             debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
         } else {
+            String perm = serverInfoToPermissionMap.get(server.getInfo());
+            if (perm != null && !ucon.hasPermission(perm)) {
+                debug(this, "not reconnecting because the \"" + ucon.getName() + "\" doesn't have permission to reconnect to this server");
+                return false;
+            }
+
             AtomicInteger attempts = getReconnectAttempts(ucon.getUniqueId());
             if (attempts == null || attempts.get() >= maxReconnects) {
                 debug(this, "not reconnected because the user has reconnected too many times");
