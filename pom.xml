@@ -92,7 +92,7 @@
 		<dependency>
 			<groupId>com.github.SpigotMC</groupId>
 			<artifactId>BungeeCord</artifactId>
-			<version>e71767688d</version>
+			<version>-6324c7d527-1</version>
             <scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -104,14 +104,14 @@
 		 <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.24</version>
+            <version>1.18.26</version>
             <scope>provided</scope>
         </dependency>
 		<!-- bStats -->
 		<dependency>
 			<groupId>org.bstats</groupId>
 			<artifactId>bstats-bungeecord</artifactId>
-			<version>3.0.0</version>
+			<version>3.0.1</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
