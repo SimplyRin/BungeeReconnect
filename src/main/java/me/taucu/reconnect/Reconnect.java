@@ -227,8 +227,8 @@ public class Reconnect extends Plugin implements Listener {
         Configuration permsSection = configuration.getSection("servers.permissions");
         for (String serverName : permsSection.getKeys()) {
             String perm = permsSection.getString(serverName, null);
-            if (perm != null && !perm.isEmpty()) {
-                ServerInfo serverInfo = ProxyServer.getInstance().getServerInfo(serverName);
+            ServerInfo serverInfo = ProxyServer.getInstance().getServerInfo(serverName);
+            if (perm != null && !perm.isEmpty() && serverInfo != null) {
                 serverInfoToPermissionMap.put(serverInfo, perm);
             }
         }
