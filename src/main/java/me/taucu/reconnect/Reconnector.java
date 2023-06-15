@@ -394,12 +394,11 @@ public class Reconnector {
         removeChannel();
         cancel();
         
-        List<ServerInfo> fallbacks = new ArrayList<>(reconnect.getFallbackServersFor(user));
+        List<ServerInfo> fallbacks = reconnect.getFallbackServersFor(user);
         // remove current server from fallback servers iterator
         fallbacks.remove(targetInfo);
         
         currentServer.setObsolete(true);
-        
 
         TitleViewEntry fail = data.getFailTitle();
         // Send fancy title if it's enabled in config, otherwise reset the connecting
