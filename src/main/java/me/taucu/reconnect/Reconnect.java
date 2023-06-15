@@ -597,8 +597,6 @@ public class Reconnect extends Plugin implements Listener {
                     .filter(Objects::nonNull)
                     .forEach(servers::add);
         }
-        user.getPendingConnection().getListener().getServerPriority()
-                .forEach(s -> servers.add(bungee.getServerInfo(s)));
         return servers;
     }
     
