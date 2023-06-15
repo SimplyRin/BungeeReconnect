@@ -6,6 +6,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.util.internal.PlatformDependent;
+import lombok.Getter;
 import lombok.Setter;
 import me.taucu.reconnect.net.ReconnectChannelInitializer;
 import me.taucu.reconnect.util.MyPipelineUtils;
@@ -26,10 +27,7 @@ import net.md_5.bungee.protocol.packet.KeepAlive;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,7 +45,7 @@ public class Reconnector {
     private final BungeeServerInfo targetInfo;
 
     //user can change locale hence change provider
-    @Setter private DependentData data;
+    @Setter @Getter private DependentData data;
 
     // The time start() was called/object constructed.
     private long startTime = System.nanoTime();
@@ -396,7 +394,7 @@ public class Reconnector {
         removeChannel();
         cancel();
         
-        List<ServerInfo> fallbacks = reconnect.getFallbackServersFor(user);
+        List<ServerInfo> fallbacks = new ArrayList<>(reconnect.getFallbackServersFor(user));
         // remove current server from fallback servers iterator
         fallbacks.remove(targetInfo);
         

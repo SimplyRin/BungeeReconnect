@@ -40,7 +40,11 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
     
     public static void attachHandlerTo(ChannelPipeline pipeline, UserConnection ucon, Reconnect instance) {
         detachHandlerFrom(pipeline);
-        pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
+        if (pipeline.get("inbound-boss") != null) {
+            pipeline.addBefore("inbound-boss", NAME, new DownstreamInboundHandler(ucon, instance));
+        } else {
+            instance.getLogger().warning("Failed to attack to \"" + ucon.getName() + "\" this user will not be reconnected.");
+        }
     }
     
     public static void detachHandlerFrom(UserConnection ucon) {

@@ -110,7 +110,8 @@ public class Reconnect extends Plugin implements Listener {
         getProxy().getPlayers().forEach(ucon -> DownstreamInboundHandler.detachHandlerFrom((UserConnection) ucon));
         
         // cancel all reconnectors
-        getReconnectors().forEach(re -> re.cancel(true));
+        getReconnectors().forEach(Reconnector::failReconnect);
+        getReconnectors().forEach(r -> r.cancel(true));
     }
     
     public boolean reload() {
@@ -256,8 +257,10 @@ public class Reconnect extends Plugin implements Listener {
             }
         }
 
+        maxReconnects = Math.max(0, configuration.getInt("max-reconnects"));
+
         // get and compile excluded servers pattern
-        String excludeText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.exclude-pattern"));
+        String excludeText = ChatColor.translateAlternateColorCodes('&', configuration.getString("shutdown.exclude-regex"));
         if (Strings.isNullOrEmpty(excludeText)) {
             excludePattern = null;
         } else {
@@ -366,14 +369,14 @@ public class Reconnect extends Plugin implements Listener {
      * Starts the reconnect process assuming all conditions are met
      * <p>
      * These conditions include but are not limited to:
-     * Server Whitelist/Blacklist, user being online
+     * Server Whitelist/Blacklist, user being online, reconnect limit not exceeded, has permission for server
      * @param ucon the UserConnection to reconnect
      * @param server the Server they are going to reconnect to
      * @return true if a reconnect will occur, false otherwise
      */
     public boolean reconnectIfApplicable(UserConnection ucon, ServerConnection server) {
-        if (isIgnoredServer(server.getInfo()) && fireServerReconnectEvent(ucon, server)) {
-            debug(this, "not reconnecting because it's an ignored server, or the reconnect event has been cancelled");
+        if (isIgnoredServer(server.getInfo())) {
+            debug(this, "not reconnecting because it's an ignored server");
         } else {
             String perm = serverInfoToPermissionMap.get(server.getInfo());
             if (perm != null && !ucon.hasPermission(perm)) {
@@ -383,10 +386,12 @@ public class Reconnect extends Plugin implements Listener {
 
             AtomicInteger attempts = getReconnectAttempts(ucon.getUniqueId());
             if (attempts == null || attempts.get() >= maxReconnects) {
-                debug(this, "not reconnected because the user has reconnected too many times");
-            } else {
-                if (attempts != null) attempts.incrementAndGet();
-                return reconnectIfOnline(ucon, server);
+                debug(this, "not reconnecting because the user has reconnected too many times");
+            } else if (!fireServerReconnectEvent(ucon, server)) {
+                debug(this, "not reconnecting because reconnect event was cancelled");
+            } else if (reconnectIfOnline(ucon, server)) {
+                attempts.incrementAndGet();
+                return true;
             }
         }
         return false;
