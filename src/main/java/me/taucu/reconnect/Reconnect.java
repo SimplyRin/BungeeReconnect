@@ -60,6 +60,7 @@ public class Reconnect extends Plugin implements Listener {
     private long nanosBetweenConnects = 0, maxReconnectNanos = 0, connectFinalizationNanos = 0;
     
     private List<String> serversList = new ArrayList<>();
+    private List<String> fallbackServers = new ArrayList<>();
     private boolean serversListIsWhitelist = true;
 
     private Map<ServerInfo, String> serverInfoToPermissionMap = new ConcurrentHashMap<>();
@@ -222,6 +223,7 @@ public class Reconnect extends Plugin implements Listener {
         // obtain ignored/allowed servers from config
         serversListIsWhitelist = resolveMode(configuration.getString("servers.mode"));
         serversList = configuration.getStringList("servers.list");
+        fallbackServers = configuration.getStringList("servers.fallback-servers");
 
         // get and map servers that required a permission to reconnect
         serverInfoToPermissionMap.clear();
@@ -586,8 +588,15 @@ public class Reconnect extends Plugin implements Listener {
     
     public List<ServerInfo> getFallbackServersFor(UserConnection user) {
         List<ServerInfo> servers = new ArrayList<>();
-        user.getPendingConnection().getListener().getServerPriority()
-        .forEach(s -> servers.add(bungee.getServerInfo(s)));
+        if (fallbackServers.isEmpty()) {
+            user.getPendingConnection().getListener().getServerPriority()
+                    .forEach(s -> servers.add(bungee.getServerInfo(s)));
+        } else {
+            fallbackServers.stream()
+                    .map(bungee::getServerInfo)
+                    .filter(Objects::nonNull)
+                    .forEach(servers::add);
+        }
         return servers;
     }
     
