@@ -90,10 +90,10 @@
 	</repositories>
 	<dependencies>
 		<dependency>
-			<groupId>com.github.SpigotMC</groupId>
-			<artifactId>BungeeCord</artifactId>
-			<version>-6324c7d527-1</version>
-            <scope>provided</scope>
+			<groupId>com.github.SpigotMC.BungeeCord</groupId>
+			<artifactId>bungeecord-proxy</artifactId>
+			<version>master-0925c06f9b-1</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>dev.simplix</groupId>
