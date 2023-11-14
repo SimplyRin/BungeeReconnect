@@ -11,7 +11,6 @@ import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.event.ServerDisconnectEvent;
-import net.md_5.bungee.chat.ComponentSerializer;
 import net.md_5.bungee.netty.ChannelWrapper;
 import net.md_5.bungee.protocol.DefinedPacket;
 import net.md_5.bungee.protocol.PacketWrapper;
@@ -122,17 +121,15 @@ public class DownstreamInboundHandler extends ChannelHandlerAdapter implements C
                 DefinedPacket packet = wrapper.packet;
                 if (packet instanceof Kick) {
                     Kick kick = (Kick) packet;
-                    instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kick.getMessage() + "\"");
+
+                    // needs to be parsed like that...
+                    String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(kick.getMessage()));
+
+                    instance.debug(this, "HANDLE_KICK for " + ucon.getName() + " on server " + server.getInfo().getName() + " with message \"" + kickMessage + "\"");
                     
                     boolean legitimateKick = true;
                     
                     if (!instance.isIgnoredServer(server.getInfo())) {
-                        
-                        // needs to be parsed like that...
-                        String kickMessage = ChatColor.stripColor(BaseComponent.toLegacyText(ComponentSerializer.parse(kick.getMessage())));
-                        
-                        instance.debug(this, "kick message stripped for " + ucon.getName() + " on server " + server.getInfo().getName() + " : \"" + kickMessage + "\"");
-                        
                         // check if kickMessage is a restart message
                         if (instance.isReconnectKick(kickMessage)) {
                             log("matched kick message: " + kickMessage);
