@@ -39,10 +39,11 @@
 	</repositories>
 	<dependencies>
 		<dependency>
-			<groupId>com.github.SpigotMC.BungeeCord</groupId>
-			<artifactId>bungeecord-proxy</artifactId>
-			<version>master-0925c06f9b-1</version>
-			<scope>provided</scope>
+			<groupId>net.md-5-r</groupId>
+			<artifactId>bungeecord-api</artifactId>
+			<version>1.21-R0.1-SNAPSHOT</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/BungeeCord-v93.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>dev.simplix</groupId>
