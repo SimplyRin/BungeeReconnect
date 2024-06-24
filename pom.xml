@@ -7,32 +7,24 @@
 	<packaging>jar</packaging>
 	<name>Bungee-Reconnect</name>
 	<description>A bungeecord plugin that reconnects players to an underlying server if it goes down, or they otherwise lose connection to it</description>
+
 	<build>
-		<defaultGoal>clean package</defaultGoal>
 		<finalName>${project.name}-${project.version}</finalName>
-		<sourceDirectory>src/main/java</sourceDirectory>
 		<resources>
 			<resource>
-				<directory>${basedir}/src/main/resources</directory>
-				<includes>
-					<include>bungee.yml</include>
-					<include>config.yml</include>
-					<include>lang/ru_RU.yml</include>
-					<include>lang/en_US.yml</include>
-					<include>lang/de_DE.yml</include>
-					<include>lang/zh_CN.yml</include>
-					<include>lang/fr_FR.yml</include>
-				</includes>
+				<directory>src/main/resources</directory>
 				<filtering>true</filtering>
 			</resource>
 		</resources>
 	</build>
+
 	<repositories>
 		<repository>
 			<id>exceptionflug</id>
 			<url>https://mvn.exceptionflug.de/repository/exceptionflug-public/</url>
 		</repository>
 	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>net.md-5-r</groupId>
@@ -47,12 +39,12 @@
 			<version>2.3.3</version>
 			<scope>provided</scope>
 		</dependency>
-		 <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.32</version>
-            <scope>provided</scope>
-        </dependency>
+		<dependency>
+		<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.32</version>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
 
 	<properties>
