@@ -83,9 +83,11 @@ public class PS2CStopSoundPacket extends AbstractPacket {
             AbstractProtocolMapping.rangedIdMapping(757, 759, 0x5E),
             AbstractProtocolMapping.rangedIdMapping(760, 760, 0x61),
             AbstractProtocolMapping.rangedIdMapping(761, 761, 0x5F),
-            AbstractProtocolMapping.rangedIdMapping(762, 763, 0x63),
-            AbstractProtocolMapping.rangedIdMapping(764, 764, 0x66),
-            AbstractProtocolMapping.rangedIdMapping(765, 767, 0x68)
+            AbstractProtocolMapping.rangedIdMapping(762, 763, 0x63), // 1.20-1.20.1
+            AbstractProtocolMapping.rangedIdMapping(764, 764, 0x66), // 1.20.2
+            AbstractProtocolMapping.rangedIdMapping(765, 765, 0x68), // 1.20.3-1.20.4
+            AbstractProtocolMapping.rangedIdMapping(766, 766, 0x68), // 1.20.5-1.20.6
+            AbstractProtocolMapping.rangedIdMapping(767, 767, 0x68)  // 1.21
     );
 
     public static boolean isSupportedVersion(int protocolVersion) {
