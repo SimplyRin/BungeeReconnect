@@ -32,7 +32,6 @@ import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import net.md_5.bungee.event.EventHandler;
 import net.md_5.bungee.event.EventPriority;
-import org.bstats.bungeecord.Metrics;
 
 import java.io.File;
 import java.io.IOException;
@@ -155,7 +154,6 @@ public class Reconnect extends Plugin implements Listener {
         }
         
         processConfig(ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile, internalConfig), log);
-        Metrics metrics = new Metrics(this, 14792);
     }
 
     private void processConfig(Configuration configuration, Logger log) {
