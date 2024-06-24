@@ -7,11 +7,15 @@ import dev.simplix.protocolize.api.mapping.ProtocolIdMapping;
 import dev.simplix.protocolize.api.packet.AbstractPacket;
 import dev.simplix.protocolize.api.util.ProtocolUtil;
 import io.netty.buffer.ByteBuf;
+import lombok.Getter;
+import lombok.Setter;
 import net.md_5.bungee.protocol.BadPacketException;
 
 import java.util.Arrays;
 import java.util.List;
 
+@Setter
+@Getter
 public class PS2CStopSoundPacket extends AbstractPacket {
 
     public static final SoundCategory[] SOUND_CATEGORIES = SoundCategory.values();
@@ -64,22 +68,6 @@ public class PS2CStopSoundPacket extends AbstractPacket {
             ProtocolUtil.writeVarInt(buf, category.ordinal());
             ProtocolUtil.writeString(buf, name);
         }
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public SoundCategory getCategory() {
-        return category;
-    }
-
-    public void setCategory(SoundCategory category) {
-        this.category = category;
     }
 
     public static final List<ProtocolIdMapping> MAPPINGS = Arrays.asList(
